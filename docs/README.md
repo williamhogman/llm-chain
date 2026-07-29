@@ -14,13 +14,13 @@ To help you get started, here is an example demonstrating how to use `llm-chain`
 ```rust
 let exec = Executor::new_default();
 let chain = Step::new(
-    Model::ChatGPT3_5Turbo,
+    Model::default(), // gpt-5-mini
     [
         (Role::System, "You are a bot for making personalized greetings"),
         (Role::User, "Make a personalized greet for Joe"),
     ]
 ).to_chain();
-let res = chain.run(Parameters::new(), exec).await.unwrap();
+let res = chain.run(Parameters::new(), &exec).await?;
 println!("{:?}", res);
 ```
 
@@ -28,21 +28,22 @@ println!("{:?}", res);
 
 - **Prompt templates**: Create reusable and easily customizable prompt templates for consistent and structured interactions with LLMs.
 - **Chains**: Build powerful chains of prompts that allow you to execute more complex tasks, step by step, leveraging the full potential of LLMs.
-- **ChatGPT support**: Supports ChatGPT models, with plans to add OpenAI's other models in the future.
-- **LLaMa support**: Provides seamless integration with LLaMa models, enabling natural language understanding and generation tasks with Facebook's research models.
-- **Alpaca support**: Incorporates support for Stanford's Alpaca models, expanding the range of available language models for advanced AI applications.
-- **Tools**: Enhance your AI agents' capabilities by giving them access to various tools, such as running Bash commands, executing Python scripts, or performing web searches, enabling more complex and powerful interactions.
+- **OpenAI support**: First-class support for OpenAI's current models — the GPT-5 family, GPT-4.1, GPT-4o and the o-series reasoning models — plus any custom or fine-tuned model id.
+- **Local models via llama.cpp**: Run LLaMA, Mistral, Qwen, Gemma and any other GGUF model fully offline, with optional GPU acceleration (CUDA, Metal, Vulkan).
+- **Tools**: Enhance your AI agents' capabilities by giving them access to various tools, such as running Bash commands or executing Python scripts, enabling more complex and powerful interactions.
+- **Typed errors, no panics**: Formatting, execution and chain errors are all surfaced as typed `Result`s.
+- **Modern async**: Built on native `async fn` in traits — no `async-trait` macro overhead.
 - **Extensibility**: Designed with extensibility in mind, making it easy to integrate additional LLMs as the ecosystem grows.
 - **Community-driven**: We welcome and encourage contributions from the community to help improve and expand the capabilities of `llm-chain`.
 
 ## Getting Started 🚀
 
-To start using `llm-chain`, add it as a dependency in your `Cargo.toml`:
+To start using `llm-chain`, add it as a dependency in your `Cargo.toml` (requires Rust 1.85+):
 
 ```toml
 [dependencies]
-llm-chain = "0.1.0"
-llm-chain-openai = "0.1.0
+llm-chain = "0.2.0"
+llm-chain-openai = "0.2.0"
 ```
 
 Then, refer to the [documentation](https://docs.rs/llm-chain) and [examples](/llm-chain-openai/examples) to learn how to create prompt templates, chains, and more.
