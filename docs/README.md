@@ -32,6 +32,7 @@ println!("{:?}", res);
 - **Prompt templates**: Create reusable and easily customizable prompt templates for consistent and structured interactions with LLMs.
 - **Chains**: Build powerful chains of prompts that allow you to execute more complex tasks, step by step, leveraging the full potential of LLMs.
 - **OpenAI support**: First-class support for OpenAI's current models — the GPT-5.6 family (sol/terra/luna) down through GPT-5.x, GPT-4.1, GPT-4o and the o-series reasoning models — plus any custom or fine-tuned model id, with per-step request options (temperature, reasoning effort, verbosity, JSON mode and more).
+- **Anthropic support**: Claude via the Messages API — the Claude 5 generation (Fable, Opus, Sonnet) and Haiku 4.5 — with system prompts, sampling controls, reasoning effort and extended thinking, on a minimal built-in client (reqwest + rustls, no third-party SDK).
 - **Local models via llama.cpp**: Run LLaMA, Mistral, Qwen, Gemma and any other GGUF model fully offline, with optional GPU acceleration (CUDA, Metal, Vulkan).
 - **Tools**: Enhance your AI agents' capabilities by giving them access to various tools, such as running Bash commands or executing Python scripts, enabling more complex and powerful interactions.
 - **Typed errors, no panics**: Formatting, execution and chain errors are all surfaced as typed `Result`s.
@@ -46,10 +47,29 @@ To start using `llm-chain`, add it as a dependency in your `Cargo.toml` (require
 ```toml
 [dependencies]
 llm-chain = "0.2.0"
-llm-chain-openai = "0.2.0"
+llm-chain-openai = "0.2.0"     # OpenAI (GPT)
+llm-chain-anthropic = "0.2.0"  # Anthropic (Claude)
+llm-chain-llama = "0.2.0"      # Local GGUF models via llama.cpp
 ```
 
-Then, refer to the [documentation](https://docs.rs/llm-chain) and [examples](/llm-chain-openai/examples) to learn how to create prompt templates, chains, and more.
+Claude example:
+
+```rust
+use llm_chain::{Parameters, traits::StepExt};
+use llm_chain_anthropic::messages::{Executor, Model, Role, Step};
+
+let exec = Executor::new_default()?; // reads ANTHROPIC_API_KEY
+let chain = Step::new(
+    Model::default(), // claude-sonnet-5
+    [(Role::User, "Make a personalized greet for Joe")],
+)
+.with_system("You are a bot for making personalized greetings")
+.to_chain();
+let res = chain.run(Parameters::new(), &exec).await?;
+println!("{}", res.text());
+```
+
+Then, refer to the [documentation](https://docs.rs/llm-chain) and the examples ([OpenAI](/llm-chain-openai/examples), [Anthropic](/llm-chain-anthropic/examples)) to learn how to create prompt templates, chains, and more.
 
 ## Contributing 🤝
 
