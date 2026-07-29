@@ -14,6 +14,9 @@ async fn main() {
     let exec = Executor::new_default().expect("set GEMINI_API_KEY or GOOGLE_API_KEY");
 
     // Low temperature and a low thinking level for a fast, focused answer.
+    // Other knobs: .with_thinking_budget(n) on Gemini 2.5 models,
+    // .with_include_thoughts(true) to get thought summaries back, and
+    // .with_response_mime_type("application/json") for JSON output.
     let options = Options::new()
         .with_temperature(0.2)
         .with_max_output_tokens(512)
