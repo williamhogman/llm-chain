@@ -5,7 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 description = "A library implementing `llm-chains` for OpenAI's models. Chains can be used to apply the model series to complete complex tasks, such as text summarization."
 license.workspace = true
-keywords = ["llm", "langchain", "chatgpt", "chain"]
+keywords = ["llm", "langchain", "openai", "gpt", "chain"]
 categories = ["science"]
 authors.workspace = true
 readme = "../docs/README.md"
@@ -22,6 +22,8 @@ serde = { workspace = true, optional = true }
 thiserror.workspace = true
 
 [dev-dependencies]
+serde_json.workspace = true
+serde_yaml_ng.workspace = true
 tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread"] }
 
 [lints]

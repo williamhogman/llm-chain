@@ -1,5 +1,5 @@
 use llm_chain::traits::StepExt;
-use llm_chain_openai::chatgpt::{Executor, Model, Role, Step};
+use llm_chain_openai::chat::{Executor, Model, Role, Step};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {

@@ -1,24 +1,58 @@
 //! # llm-chain-openai
 //!
-//! Supercharge your applications with the power of OpenAI's API, and welcome to the world of `llm-chain-openai`! This crate brings the incredible ChatGPT model to `lang-chain`, making it a breeze to generate human-like text.
+//! The OpenAI driver for [llm-chain](https://crates.io/crates/llm-chain): run chains against
+//! OpenAI's Chat Completions API, from the GPT-5.6 family down to the classic GPT-4 era models.
 //!
-//! Designed to work seamlessly with the [llm-chain](https://crates.io/crates/llm-chain) crate, `llm-chain-openai` allows you to take full advantage of the OpenAI API, unlocking the potential of Large Language Models for your projects.
+//! To get started you need an OpenAI API key — create one at
+//! <https://platform.openai.com/api-keys> and export it as `OPENAI_API_KEY`, or pass it
+//! explicitly with [`chat::Executor::with_api_key`].
 //!
-//! To get started, you'll need an OpenAI API key. Don't have one yet? No problem! You can grab one [here](https://beta.openai.com/docs/api-reference/authentication). 🔑
+//! # What's inside? 🎁
 //!
-//! # What's Inside? 🎁
+//! - [`chat::Step`] — a prompt template plus a [`chat::Model`] and optional [`chat::Options`]
+//!   (temperature, reasoning effort, response format, …)
+//! - [`chat::Executor`] — runs formatted steps against the API, ready to plug into
+//!   sequential and map-reduce chains
+//! - Full serialization support, so chains can be stored as YAML and loaded back
 //!
-//! With `llm-chain-openai`, you'll be able to:
+//! # Example
 //!
-//! - Crate your custom text summarization workflows using the llm-chain crate and the OpenAI API 📚
-//! - Perform complex tasks by chaining together different prompts and models 🧠
+//! ```no_run
+//! use llm_chain::{Parameters, traits::StepExt};
+//! use llm_chain_openai::chat::{Executor, Model, Role, Step};
+//!
+//! #[tokio::main(flavor = "current_thread")]
+//! async fn main() {
+//!     let exec = Executor::new_default();
+//!     let chain = Step::new(
+//!         Model::default(),
+//!         [
+//!             (Role::System, "You are a helpful assistant."),
+//!             (Role::User, "Tell me about the Rust programming language."),
+//!         ],
+//!     )
+//!     .to_chain();
+//!     let res = chain.run(Parameters::new(), &exec).await.unwrap();
+//!     println!(
+//!         "{}",
+//!         res.choices
+//!             .first()
+//!             .and_then(|c| c.message.content.as_deref())
+//!             .unwrap_or_default()
+//!     );
+//! }
+//! ```
+//!
+//! Dive into the examples folder for more, including parameterized prompts, sequential
+//! chains, request options and YAML round-trips. Happy coding! 🥳🚀
 
-//! # Examples 📚
-//!
-//! Dive into the examples folder to discover how to harness the power of this crate. You'll find detailed examples that showcase how to generate text using the ChatGPT model, as well as how to chain the prompts together to create more complex workflows.
-//!
-//! So gear up, and let llm-chain-openai elevate your applications to new heights! With the combined powers of Large Language Models and the OpenAI API, there's no limit to what you can achieve. 🌠🎊
-//!
-//! Happy coding, and enjoy the amazing world of LLMs with llm-chain-openai! 🥳🚀P
+pub mod chat;
 
-pub mod chatgpt;
+/// Deprecated alias for the [`chat`] module.
+#[deprecated(
+    since = "0.2.0",
+    note = "the `chatgpt` module has been renamed to `chat`"
+)]
+pub mod chatgpt {
+    pub use crate::chat::*;
+}

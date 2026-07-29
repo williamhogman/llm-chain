@@ -12,9 +12,12 @@
 To help you get started, here is an example demonstrating how to use `llm-chain`. You can find more examples in the [examples folder](/llm-chain-openai/examples) in the repository.
 
 ```rust
+use llm_chain::{Parameters, traits::StepExt};
+use llm_chain_openai::chat::{Executor, Model, Role, Step};
+
 let exec = Executor::new_default();
 let chain = Step::new(
-    Model::default(), // gpt-5-mini
+    Model::default(), // gpt-5.6-terra
     [
         (Role::System, "You are a bot for making personalized greetings"),
         (Role::User, "Make a personalized greet for Joe"),
@@ -28,7 +31,7 @@ println!("{:?}", res);
 
 - **Prompt templates**: Create reusable and easily customizable prompt templates for consistent and structured interactions with LLMs.
 - **Chains**: Build powerful chains of prompts that allow you to execute more complex tasks, step by step, leveraging the full potential of LLMs.
-- **OpenAI support**: First-class support for OpenAI's current models — the GPT-5 family, GPT-4.1, GPT-4o and the o-series reasoning models — plus any custom or fine-tuned model id.
+- **OpenAI support**: First-class support for OpenAI's current models — the GPT-5.6 family (sol/terra/luna) down through GPT-5.x, GPT-4.1, GPT-4o and the o-series reasoning models — plus any custom or fine-tuned model id, with per-step request options (temperature, reasoning effort, verbosity, JSON mode and more).
 - **Local models via llama.cpp**: Run LLaMA, Mistral, Qwen, Gemma and any other GGUF model fully offline, with optional GPU acceleration (CUDA, Metal, Vulkan).
 - **Tools**: Enhance your AI agents' capabilities by giving them access to various tools, such as running Bash commands or executing Python scripts, enabling more complex and powerful interactions.
 - **Typed errors, no panics**: Formatting, execution and chain errors are all surfaced as typed `Result`s.
