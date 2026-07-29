@@ -111,7 +111,10 @@ async fn executor_speaks_the_gemini_api() {
         "be friendly"
     );
     assert_eq!(captured.body["contents"][0]["role"], "user");
-    assert_eq!(captured.body["contents"][0]["parts"][0]["text"], "Greet Joe");
+    assert_eq!(
+        captured.body["contents"][0]["parts"][0]["text"],
+        "Greet Joe"
+    );
     assert_eq!(captured.body["generationConfig"]["temperature"], 0.5);
     assert_eq!(
         captured.body["generationConfig"]["thinkingConfig"]["thinkingLevel"],
@@ -119,7 +122,11 @@ async fn executor_speaks_the_gemini_api() {
     );
     // Options that were not set must not be sent at all.
     assert!(captured.body["generationConfig"].get("topP").is_none());
-    assert!(captured.body["generationConfig"].get("maxOutputTokens").is_none());
+    assert!(
+        captured.body["generationConfig"]
+            .get("maxOutputTokens")
+            .is_none()
+    );
 }
 
 #[tokio::test(flavor = "current_thread")]

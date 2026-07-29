@@ -19,7 +19,10 @@ async fn main() {
         .with_system("You are a punchy copywriter"),
         Step::new(
             Model::default(),
-            [(Role::User, "Polish this tagline and output only the final version: {}")],
+            [(
+                Role::User,
+                "Polish this tagline and output only the final version: {}",
+            )],
         ),
     ]);
     let res = chain

@@ -166,10 +166,7 @@ impl traits::Step for Step {
         let mut request = GenerateContentRequest {
             model: self.model.to_string(),
             contents: self.prompt.format(parameters)?,
-            system_instruction: self
-                .prompt
-                .format_system(parameters)?
-                .map(Content::system),
+            system_instruction: self.prompt.format_system(parameters)?.map(Content::system),
             generation_config: None,
         };
         self.options.apply(&mut request);

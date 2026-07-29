@@ -153,7 +153,11 @@ impl Options {
             stop_sequences: self.stop_sequences.clone(),
             thinking_config,
         };
-        request.generation_config = if config.is_empty() { None } else { Some(config) };
+        request.generation_config = if config.is_empty() {
+            None
+        } else {
+            Some(config)
+        };
     }
 }
 
@@ -205,7 +209,9 @@ mod tests {
     #[test]
     fn thinking_budget_builds_a_thinking_config() {
         let mut request = base_request();
-        Options::new().with_thinking_budget(2048).apply(&mut request);
+        Options::new()
+            .with_thinking_budget(2048)
+            .apply(&mut request);
         let config = request.generation_config.expect("config set");
         assert_eq!(
             config.thinking_config,

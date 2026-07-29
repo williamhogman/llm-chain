@@ -7,9 +7,7 @@
 //! cargo run --example gemini_generation_with_options -p llm-chain-gemini
 //! ```
 use llm_chain::{Parameters, traits::StepExt};
-use llm_chain_gemini::generate_content::{
-    Executor, Model, Options, Role, Step, ThinkingLevel,
-};
+use llm_chain_gemini::generate_content::{Executor, Model, Options, Role, Step, ThinkingLevel};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
