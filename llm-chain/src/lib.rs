@@ -25,4 +25,4 @@ pub mod traits;
 
 pub use parameters::Parameters;
 
-pub use templates::PromptTemplate;
+pub use templates::{PromptTemplate, PromptTemplateError};

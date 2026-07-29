@@ -1,11 +1,14 @@
-use crate::description::{Describe, Format, ToolDescription};
-use crate::tool::{gen_invoke_function, Tool};
 use serde::{Deserialize, Serialize};
 use std::process::Command;
 
+use crate::description::{Describe, Format, ToolDescription};
+use crate::tool::{Tool, ToolError, gen_invoke_function};
+
+/// A tool that executes Python code.
 pub struct PythonTool {}
 
 impl PythonTool {
+    /// Creates a new `PythonTool`.
     pub fn new() -> Self {
         PythonTool {}
     }
@@ -45,15 +48,14 @@ impl Describe for PythonToolOutput {
 }
 
 impl PythonTool {
-    fn invoke_typed(&self, input: &PythonToolInput) -> Result<PythonToolOutput, String> {
+    fn invoke_typed(&self, input: &PythonToolInput) -> Result<PythonToolOutput, ToolError> {
         let output = Command::new("python3")
             .arg("-c")
             .arg(&input.code)
-            .output()
-            .map_err(|_e| "failed to execute process")?;
+            .output()?;
         Ok(PythonToolOutput {
-            result: String::from_utf8(output.stdout).unwrap(),
-            stderr: String::from_utf8(output.stderr).unwrap(),
+            result: String::from_utf8_lossy(&output.stdout).into_owned(),
+            stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
         })
     }
 }

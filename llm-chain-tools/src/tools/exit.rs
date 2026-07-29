@@ -1,11 +1,13 @@
-use crate::description::{Describe, Format, ToolDescription};
-use crate::tool::{gen_invoke_function, Tool};
 use serde::{Deserialize, Serialize};
+
+use crate::description::{Describe, Format, ToolDescription};
+use crate::tool::{Tool, ToolError, gen_invoke_function};
 
 /// A tool that exits the program with the given status code.
 pub struct ExitTool {}
 
 impl ExitTool {
+    /// Creates a new `ExitTool`.
     pub fn new() -> Self {
         ExitTool {}
     }
@@ -38,7 +40,7 @@ impl Describe for ExitToolOutput {
 }
 
 impl ExitTool {
-    fn invoke_typed(&self, input: &ExitToolInput) -> Result<ExitToolOutput, String> {
+    fn invoke_typed(&self, input: &ExitToolInput) -> Result<ExitToolOutput, ToolError> {
         std::process::exit(input.status_code);
     }
 }

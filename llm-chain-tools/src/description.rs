@@ -1,4 +1,4 @@
-use serde::{ser::SerializeMap, Serialize, Serializer};
+use serde::{Serialize, Serializer, ser::SerializeMap};
 
 #[derive(Clone)]
 /// A description of a parameter for a tool.

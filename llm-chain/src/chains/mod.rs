@@ -8,5 +8,29 @@
 //!
 //! Stay tuned for more chain types, and feel free to contribute your own! 🎉
 
+use thiserror::Error;
+
 pub mod map_reduce;
 pub mod sequential;
+
+/// An error that occurred while running a chain.
+///
+/// A chain can fail either while formatting a step's prompt (`Format`), while
+/// executing a step against the model (`Execute`), or because there was
+/// nothing to run (`Empty`).
+#[derive(Debug, Error)]
+pub enum ChainError<StepError, ExecutorError>
+where
+    StepError: std::error::Error + Send + Sync + 'static,
+    ExecutorError: std::error::Error + Send + Sync + 'static,
+{
+    /// Formatting a step's prompt failed.
+    #[error("failed to format step prompt: {0}")]
+    Format(#[source] StepError),
+    /// The executor failed to run a step.
+    #[error("executor failed: {0}")]
+    Execute(#[source] ExecutorError),
+    /// The chain had no steps, or no documents were provided.
+    #[error("the chain had nothing to run")]
+    Empty,
+}

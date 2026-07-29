@@ -3,24 +3,20 @@ use llm_chain::serialization::IoExt;
 use llm_chain_openai::chatgpt::Executor;
 use llm_chain_openai::chatgpt::Step;
 
-#[cfg(feature = "serialization")]
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
-    use llm_chain_openai::chatgpt::Model;
+    use llm_chain_openai::chatgpt::{Model, Role};
 
     let chatgpt = Executor::new_default();
 
     let chain_to_write = Chain::<Step>::of_one(Step::new(
-        Model::ChatGPT3_5Turbo,
+        Model::default(),
         [
             (
-                llm_chain_openai::chatgpt::Role::System,
+                Role::System,
                 "You are a bot for making personalized greetings",
             ),
-            (
-                llm_chain_openai::chatgpt::Role::User,
-                "Make a personalized greet for Joe",
-            ),
+            (Role::User, "Make a personalized greet for Joe"),
         ],
     ));
     chain_to_write
@@ -29,8 +25,14 @@ async fn main() {
 
     let chain = Chain::<Step>::read_file_sync("chain-from-yaml.yaml").unwrap();
     let res = chain
-        .run(llm_chain::Parameters::new(), chatgpt)
+        .run(llm_chain::Parameters::new(), &chatgpt)
         .await
         .unwrap();
-    println!("{:?}", res);
+    println!(
+        "{}",
+        res.choices
+            .first()
+            .and_then(|c| c.message.content.as_deref())
+            .unwrap_or_default()
+    );
 }

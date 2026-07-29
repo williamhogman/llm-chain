@@ -18,5 +18,6 @@ pub fn new_instruct_template<T: Into<String>>(instruction_template: T) -> Prompt
         ".into();
     instruct
         .format(&Parameters::new_with_text(instruction_template))
+        .expect("the built-in instruct template is valid")
         .into()
 }

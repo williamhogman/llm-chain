@@ -80,7 +80,7 @@ impl<'de, T: Serialize + Deserialize<'de>> Deserialize<'de> for Envelope<T> {
         {
             type Value = Envelope<T>;
 
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 formatter.write_str("struct Envelope")
             }
 
@@ -127,7 +127,7 @@ impl<T> Envelope<T> {
 pub enum EnvelopeError {
     // YAML parsing
     #[error("YAML parsing error: {0}")]
-    YamlParsingError(#[from] serde_yaml::Error),
+    YamlParsingError(#[from] serde_yaml_ng::Error),
     #[error("IO error: {0}")]
     IOError(#[from] std::io::Error),
 }
@@ -139,7 +139,7 @@ where
     pub fn read_file_sync(path: &str) -> Result<Self, EnvelopeError> {
         let file = std::fs::File::open(path)?;
         let reader = std::io::BufReader::new(file);
-        let envelope = serde_yaml::from_reader(reader)?;
+        let envelope = serde_yaml_ng::from_reader(reader)?;
         Ok(envelope)
     }
     #[cfg(feature = "async")]
@@ -148,19 +148,19 @@ where
         let mut file = tokio::fs::File::open(path).await?;
         let mut contents: Vec<u8> = vec![];
         file.read_to_end(&mut contents).await?;
-        let envelope = serde_yaml::from_slice(&contents)?;
+        let envelope = serde_yaml_ng::from_slice(&contents)?;
         Ok(envelope)
     }
     pub fn write_file_sync(&self, path: &str) -> Result<(), EnvelopeError> {
         let file = std::fs::File::create(path)?;
         let writer = std::io::BufWriter::new(file);
-        serde_yaml::to_writer(writer, &self)?;
+        serde_yaml_ng::to_writer(writer, &self)?;
         Ok(())
     }
     #[cfg(feature = "async")]
     pub async fn write_file_async(&self, path: &str) -> Result<(), EnvelopeError> {
         use tokio::io::AsyncWriteExt;
-        let data = serde_yaml::to_string(&self)?;
+        let data = serde_yaml_ng::to_string(&self)?;
         let mut file = tokio::fs::File::create(path).await?;
         file.write_all(data.as_bytes()).await?;
         Ok(())

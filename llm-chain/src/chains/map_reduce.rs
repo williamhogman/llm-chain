@@ -1,49 +1,81 @@
-use crate::{
-    serialization::StorableEntity,
-    traits::{Executor, Step},
-    Parameters,
-};
+//! Map-reduce chains apply a `map` step to every document in parallel, combine
+//! the outputs, and then run a `reduce` step over the combined result.
+
 use futures::future::join_all;
 #[cfg(feature = "serialization")]
 use serde::{
+    Deserialize, Serialize,
     de::{MapAccess, Visitor},
     ser::SerializeStruct,
-    Deserialize, Serialize,
 };
 
+#[cfg(feature = "serialization")]
+use crate::serialization::StorableEntity;
+use crate::{
+    Parameters,
+    chains::ChainError,
+    traits::{Executor, Step},
+};
+
+/// A map-reduce chain: applies `map` to each document, combines the results and runs `reduce` over the combination.
 pub struct Chain<S: Step> {
     map: S,
     reduce: S,
 }
 
 impl<S: Step> Chain<S> {
+    /// Creates a new map-reduce chain from a map step and a reduce step.
     pub fn new(map: S, reduce: S) -> Chain<S> {
         Chain { map, reduce }
     }
+
+    /// Runs the chain over the given documents.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ChainError::Empty`] if `documents` is empty, and
+    /// [`ChainError::Format`] or [`ChainError::Execute`] if a step fails.
     pub async fn run<L: Executor<Step = S>>(
         &self,
         documents: Vec<Parameters>,
         base_parameters: Parameters,
-        executor: L,
-    ) -> Option<L::Output> {
-        let mapped_documents = documents
+        executor: &L,
+    ) -> Result<L::Output, ChainError<S::Error, L::Error>> {
+        if documents.is_empty() {
+            return Err(ChainError::Empty);
+        }
+        // TODO: We need to do this recursively for really big documents
+        let formatted_documents = documents
             .iter()
-            .map(|doc| base_parameters.combine(doc))
-            .map(|doc| self.map.format(&doc))
-            .map(|formatted| executor.execute(formatted));
-        let mapped_documents = join_all(mapped_documents).await;
+            .map(|doc| self.map.format(&base_parameters.combine(doc)))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(ChainError::Format)?;
+
+        let mapped_documents = join_all(
+            formatted_documents
+                .into_iter()
+                .map(|formatted| executor.execute(formatted)),
+        )
+        .await
+        .into_iter()
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(ChainError::Execute)?;
 
         let combined_output = mapped_documents
-            .iter()
-            .fold(None, |a, b| a.map(|a| (L::combine_outputs(&a, b))))?;
-
-        // TODO: We need to do this recursively for really big documents
+            .into_iter()
+            .reduce(|a, b| L::combine_outputs(&a, &b))
+            .ok_or(ChainError::Empty)?;
 
         let combined_parameters = L::apply_output_to_parameters(base_parameters, &combined_output);
 
-        let formatted = self.reduce.format(&combined_parameters);
-        let output = executor.execute(formatted).await;
-        Some(output)
+        let formatted = self
+            .reduce
+            .format(&combined_parameters)
+            .map_err(ChainError::Format)?;
+        executor
+            .execute(formatted)
+            .await
+            .map_err(ChainError::Execute)
     }
 }
 
@@ -71,7 +103,7 @@ impl<'de, S: Step + Deserialize<'de>> Deserialize<'de> for Chain<S> {
         impl<'de, S: Step + Deserialize<'de>> Visitor<'de> for ChainVisitor<S> {
             type Value = Chain<S>;
 
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 formatter.write_str("an object with fields `map` and `reduce`")
             }
 
@@ -115,6 +147,7 @@ impl<'de, S: Step + Deserialize<'de>> Deserialize<'de> for Chain<S> {
     }
 }
 
+#[cfg(feature = "serialization")]
 impl<S> StorableEntity for Chain<S>
 where
     S: Step + StorableEntity,

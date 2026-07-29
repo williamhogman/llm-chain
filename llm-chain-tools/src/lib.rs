@@ -4,7 +4,7 @@
 //!
 //! The main components of this module are:
 //!
-//! - `Tool`: A struct that represents an individual tool that the LLM can use.
+//! - `Tool`: A trait that represents an individual tool that the LLM can use.
 //! - `ToolCollection`: A collection of `Tool` instances.
 //! - `create_tool_prompt_segment`: A function to create a prompt that indicates the model should use the provided tools.
 //!
@@ -16,11 +16,11 @@
 //! use std::boxed::Box;
 //!
 //! // Create a ToolCollection with some tools.
-//! let mut tc = ToolCollection::new(vec![Box::new(BashTool::new())]);
+//! let tc = ToolCollection::new(vec![Box::new(BashTool::new())]);
 //!
 //! // Create a prompt indicating the LLM should use the provided tools.
 //! let prompt = "Find information about Rust programming language.";
-//! let tool_prompt = create_tool_prompt_segment(&tc, &prompt);
+//! let tool_prompt = create_tool_prompt_segment(&tc, prompt).unwrap();
 //! ```
 //!
 //! ## Modules
@@ -34,7 +34,7 @@ pub mod tools;
 use llm_chain::PromptTemplate;
 
 pub use crate::collection::ToolCollection;
-pub use tool::Tool;
+pub use tool::{Tool, ToolError};
 
 /// Creates a prompt that indicates the model should use the tools provided.
 ///
@@ -47,9 +47,13 @@ pub use tool::Tool;
 ///
 /// # Returns
 ///
-/// A `PromptTemplate` formatted with the provided tools and prompt.
-pub fn create_tool_prompt_segment(tc: &ToolCollection, prompt: &str) -> PromptTemplate {
+/// A `PromptTemplate` formatted with the provided tools and prompt, or a
+/// [`ToolError`] if the tool descriptions could not be serialized.
+pub fn create_tool_prompt_segment(
+    tc: &ToolCollection,
+    prompt: &str,
+) -> Result<PromptTemplate, ToolError> {
     let prefix = include_str!("./tool_prompt_prefix.txt").to_string();
-    let desc = tc.describe();
-    (prefix + &desc + "\n\n" + prompt).into()
+    let desc = tc.describe()?;
+    Ok((prefix + &desc + "\n\n" + prompt).into())
 }
