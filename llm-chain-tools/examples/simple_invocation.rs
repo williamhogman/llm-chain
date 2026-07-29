@@ -36,7 +36,7 @@ async fn main() {
         .first()
         .and_then(|c| c.message.content.clone())
         .unwrap_or_default();
-    println!("{}", &message_text);
+    println!("{}", message_text);
     match tool_collection.process_chat_input(&message_text) {
         Ok(output) => println!("{}", output),
         Err(e) => println!("Error: {}", e),
