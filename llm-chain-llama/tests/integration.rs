@@ -56,12 +56,16 @@ async fn greedy_sampling_is_deterministic() {
 
     let mut outputs = Vec::new();
     for _ in 0..2 {
-        let chain = Step::new_with_config("Once upon a time".into(), Some(config.clone())).to_chain();
+        let chain =
+            Step::new_with_config("Once upon a time".into(), Some(config.clone())).to_chain();
         let output = chain
             .run(Parameters::new(), &exec)
             .await
             .expect("generation should succeed");
         outputs.push(output.to_string());
     }
-    assert_eq!(outputs[0], outputs[1], "greedy sampling must be deterministic");
+    assert_eq!(
+        outputs[0], outputs[1],
+        "greedy sampling must be deterministic"
+    );
 }
