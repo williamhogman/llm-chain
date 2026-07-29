@@ -40,6 +40,8 @@ pub enum Model {
     Gemini36Flash,
     /// Gemini 3.5 Flash: high-efficiency previous Flash iteration.
     Gemini35Flash,
+    /// Gemini 3.5 Flash-Lite: the fastest and cheapest Gemini 3.5 model.
+    Gemini35FlashLite,
     /// Gemini 3.1 Pro (preview): the strongest Gemini reasoning model.
     Gemini31ProPreview,
     /// Gemini 3.1 Flash-Lite: the most cost-efficient Gemini 3 model for
@@ -65,6 +67,7 @@ impl fmt::Display for Model {
         let s = match self {
             Self::Gemini36Flash => "gemini-3.6-flash",
             Self::Gemini35Flash => "gemini-3.5-flash",
+            Self::Gemini35FlashLite => "gemini-3.5-flash-lite",
             Self::Gemini31ProPreview => "gemini-3.1-pro-preview",
             Self::Gemini31FlashLite => "gemini-3.1-flash-lite",
             Self::Gemini3FlashPreview => "gemini-3-flash-preview",
@@ -83,6 +86,7 @@ impl FromStr for Model {
         Ok(match s {
             "gemini-3.6-flash" => Self::Gemini36Flash,
             "gemini-3.5-flash" => Self::Gemini35Flash,
+            "gemini-3.5-flash-lite" => Self::Gemini35FlashLite,
             "gemini-3.1-pro-preview" => Self::Gemini31ProPreview,
             "gemini-3.1-flash-lite" => Self::Gemini31FlashLite,
             "gemini-3-flash-preview" => Self::Gemini3FlashPreview,
