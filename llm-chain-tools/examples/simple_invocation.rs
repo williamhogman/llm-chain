@@ -1,5 +1,5 @@
 use llm_chain::{Parameters, traits::StepExt};
-use llm_chain_openai::chatgpt::{Executor, Model, Role, Step};
+use llm_chain_openai::chat::{Executor, Model, Role, Step};
 use llm_chain_tools::ToolCollection;
 use llm_chain_tools::create_tool_prompt_segment;
 use llm_chain_tools::tools::BashTool;

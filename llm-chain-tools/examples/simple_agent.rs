@@ -1,6 +1,6 @@
 use llm_chain::PromptTemplate;
 use llm_chain::{Parameters, traits::StepExt};
-use llm_chain_openai::chatgpt::{
+use llm_chain_openai::chat::{
     ChatPromptTemplate, Executor, MessagePromptTemplate, Model, Role, Step,
 };
 use llm_chain_tools::ToolCollection;
