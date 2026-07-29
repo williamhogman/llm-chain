@@ -19,6 +19,15 @@ if ! command -v cargo >/dev/null 2>&1; then
   done
 fi
 
+# llama-cpp-sys-2 builds llama.cpp with cmake; put it on PATH if needed.
+if ! command -v cmake >/dev/null 2>&1; then
+  _cmake_bin="$( (ls -d /nix/store/*cmake*/bin 2>/dev/null || true) | head -1)"
+  if [ -n "$_cmake_bin" ] && [ -x "$_cmake_bin/cmake" ]; then
+    export PATH="$_cmake_bin:$PATH"
+  fi
+fi
+
+
 if [ -z "${LIBCLANG_PATH:-}" ]; then
   _libclang="$( (find /nix/store -maxdepth 4 -name 'libclang.so*' 2>/dev/null || true) | head -1)"
   if [ -n "$_libclang" ]; then
