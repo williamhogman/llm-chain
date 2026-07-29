@@ -31,6 +31,8 @@ if [ ! -f target/doc/index.html ]; then
   <ul>
     <li><a href="/llm_chain/index.html">llm-chain</a> — core traits, chains, prompt templates</li>
     <li><a href="/llm_chain_openai/index.html">llm-chain-openai</a> — OpenAI chat executor</li>
+    <li><a href="/llm_chain_anthropic/index.html">llm-chain-anthropic</a> — Anthropic Claude executor</li>
+    <li><a href="/llm_chain_gemini/index.html">llm-chain-gemini</a> — Google Gemini executor</li>
     <li><a href="/llm_chain_llama/index.html">llm-chain-llama</a> — llama.cpp (GGUF) executor</li>
     <li><a href="/llm_chain_tools/index.html">llm-chain-tools</a> — tools for agents</li>
   </ul>
