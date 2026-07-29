@@ -3,6 +3,7 @@ resolver = "3"
 members = [
     "llm-chain",
     "llm-chain-anthropic",
+    "llm-chain-gemini",
     "llm-chain-openai",
     "llm-chain-tools",
     "llm-chain-llama",
