@@ -4,4 +4,4 @@ metadata:
   name: 99-test
 spec:
   purpose: test
-  command: "bash -c 'export PATH=$HOME/.cargo/bin:$PATH && cargo test --workspace'"
+  command: "bash -c 'source scripts/rust-env.sh && cargo test --workspace'"

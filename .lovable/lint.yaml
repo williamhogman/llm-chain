@@ -4,4 +4,4 @@ metadata:
   name: 99-lint
 spec:
   purpose: lint
-  command: "bash -c 'export PATH=$HOME/.cargo/bin:$PATH && cargo clippy --workspace --all-targets -- -D warnings && cargo fmt --all --check'"
+  command: "bash -c 'source scripts/rust-env.sh && cargo clippy --workspace --all-targets -- -D warnings && cargo fmt --all --check'"
