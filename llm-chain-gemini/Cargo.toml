@@ -1,0 +1,32 @@
+[package]
+name = "llm-chain-gemini"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "A library implementing `llm-chains` for Google's Gemini models via the Gemini API. Chains can be used to apply the model series to complete complex tasks, such as text summarization."
+license.workspace = true
+keywords = ["llm", "gemini", "google", "chain", "agents"]
+categories = ["science"]
+authors.workspace = true
+readme = "../docs/README.md"
+repository.workspace = true
+
+[features]
+default = ["serialization"]
+# Enables YAML (de)serialization of steps and prompt templates.
+# The wire types always derive serde; this only gates the llm-chain integration.
+serialization = ["llm-chain/serialization"]
+
+[dependencies]
+llm-chain.workspace = true
+reqwest.workspace = true
+serde = { workspace = true }
+serde_json.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+serde_yaml_ng.workspace = true
+tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread"] }
+
+[lints]
+workspace = true
