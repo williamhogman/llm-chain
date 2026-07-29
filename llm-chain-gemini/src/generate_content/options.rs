@@ -69,6 +69,18 @@ pub struct Options {
         serde(skip_serializing_if = "Option::is_none")
     )]
     thinking_budget: Option<i32>,
+    /// Whether the API should include thought summaries in the response.
+    #[cfg_attr(
+        feature = "serialization",
+        serde(skip_serializing_if = "Option::is_none")
+    )]
+    include_thoughts: Option<bool>,
+    /// MIME type of the response, e.g. `application/json`.
+    #[cfg_attr(
+        feature = "serialization",
+        serde(skip_serializing_if = "Option::is_none")
+    )]
+    response_mime_type: Option<String>,
 }
 
 impl Options {
@@ -135,12 +147,32 @@ impl Options {
         self
     }
 
+    /// Asks the API to include thought summaries in the response.
+    ///
+    /// Thought parts carry `thought == true` and are excluded from
+    /// [`GenerateContentResponse::text`](super::types::GenerateContentResponse::text);
+    /// walk the candidate's parts to read them.
+    pub fn with_include_thoughts(mut self, include_thoughts: bool) -> Self {
+        self.include_thoughts = Some(include_thoughts);
+        self
+    }
+
+    /// Sets the response MIME type, e.g. `application/json` for JSON output.
+    pub fn with_response_mime_type<S: Into<String>>(mut self, response_mime_type: S) -> Self {
+        self.response_mime_type = Some(response_mime_type.into());
+        self
+    }
+
     /// Applies every set option to a request.
     pub(crate) fn apply(&self, request: &mut GenerateContentRequest) {
-        let thinking_config = if self.thinking_level.is_some() || self.thinking_budget.is_some() {
+        let thinking_config = if self.thinking_level.is_some()
+            || self.thinking_budget.is_some()
+            || self.include_thoughts.is_some()
+        {
             Some(ThinkingConfig {
                 thinking_level: self.thinking_level,
                 thinking_budget: self.thinking_budget,
+                include_thoughts: self.include_thoughts,
             })
         } else {
             None
@@ -151,6 +183,7 @@ impl Options {
             top_k: self.top_k,
             max_output_tokens: self.max_output_tokens,
             stop_sequences: self.stop_sequences.clone(),
+            response_mime_type: self.response_mime_type.clone(),
             thinking_config,
         };
         request.generation_config = if config.is_empty() {
@@ -202,6 +235,7 @@ mod tests {
             Some(ThinkingConfig {
                 thinking_level: Some(ThinkingLevel::Low),
                 thinking_budget: None,
+                include_thoughts: None,
             })
         );
     }
@@ -218,6 +252,29 @@ mod tests {
             Some(ThinkingConfig {
                 thinking_level: None,
                 thinking_budget: Some(2048),
+                include_thoughts: None,
+            })
+        );
+    }
+
+    #[test]
+    fn include_thoughts_and_json_mode_are_applied() {
+        let mut request = base_request();
+        Options::new()
+            .with_include_thoughts(true)
+            .with_response_mime_type("application/json")
+            .apply(&mut request);
+        let config = request.generation_config.expect("config set");
+        assert_eq!(
+            config.response_mime_type,
+            Some("application/json".to_string())
+        );
+        assert_eq!(
+            config.thinking_config,
+            Some(ThinkingConfig {
+                thinking_level: None,
+                thinking_budget: None,
+                include_thoughts: Some(true),
             })
         );
     }

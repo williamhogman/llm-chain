@@ -94,17 +94,24 @@ pub struct ThinkingConfig {
     /// `0` disables thinking (where supported) and `-1` enables dynamic thinking.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub thinking_budget: Option<i32>,
+    /// Ask the API to return thought summaries as parts with
+    /// [`Part::thought`] set to `true`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub include_thoughts: Option<bool>,
 }
 
 /// Thinking depth for Gemini 3-generation models.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ThinkingLevel {
-    /// Minimal thinking for the lowest latency and cost.
+    /// The least thinking, for the lowest latency and cost. Not supported by
+    /// every model (e.g. Gemini 3.1 Pro cannot go below [`ThinkingLevel::Low`]).
+    Minimal,
+    /// Little thinking, for latency-sensitive work.
     Low,
     /// A balance of depth and latency.
     Medium,
-    /// Maximum reasoning depth (the API default on Gemini 3 models).
+    /// Maximum reasoning depth (the API default on Gemini 3 Pro-class models).
     High,
 }
 
@@ -127,6 +134,9 @@ pub struct GenerationConfig {
     /// Sequences at which the model stops generating.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stop_sequences: Option<Vec<String>>,
+    /// The MIME type of the response, e.g. `application/json` for JSON output.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub response_mime_type: Option<String>,
     /// Thinking controls.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub thinking_config: Option<ThinkingConfig>,
@@ -173,6 +183,16 @@ pub enum FinishReason {
     Safety,
     /// The response was flagged for reciting training data.
     Recitation,
+    /// The response used an unsupported language.
+    Language,
+    /// The response contained a term from a configured blocklist.
+    Blocklist,
+    /// The response was flagged as prohibited content.
+    ProhibitedContent,
+    /// The response was flagged for sensitive personally identifiable information.
+    Spii,
+    /// The model produced an invalid function call.
+    MalformedFunctionCall,
     /// Any finish reason this crate does not model.
     #[serde(other)]
     Other,
@@ -191,6 +211,9 @@ pub struct UsageMetadata {
     /// Tokens spent thinking.
     #[serde(default)]
     pub thoughts_token_count: u32,
+    /// Prompt tokens served from the context cache.
+    #[serde(default)]
+    pub cached_content_token_count: u32,
     /// Total tokens for the request.
     #[serde(default)]
     pub total_token_count: u32,

@@ -6,6 +6,12 @@
 //! The crate ships its own minimal, dependency-light API client built on `reqwest` with
 //! rustls — there is no unofficial SDK in the dependency tree to fall out of date.
 //!
+//! It targets the long-stable `generateContent` REST surface (`v1beta`). Google
+//! also ships a newer Interactions API; the wire types here are scoped to the
+//! [`generate_content`] module so an `interactions` module can sit alongside it
+//! once that API settles.
+//!
+
 //! ## Getting started
 //!
 //! ```no_run
