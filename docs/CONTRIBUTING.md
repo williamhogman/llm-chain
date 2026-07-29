@@ -10,6 +10,20 @@ First of all, thank you for considering contributing to our project! 🎉 We are
 4. Commit and push your changes to your fork.
 5. Open a pull request against the main repository.
 
+## Development Requirements
+
+- Rust 1.85 or later (the workspace uses the 2024 edition).
+- Building `llm-chain-llama` compiles llama.cpp from source, which requires `cmake`, a C/C++ toolchain and `libclang` (`sudo apt-get install build-essential cmake libclang-dev` on Debian/Ubuntu).
+
+Before opening a pull request, please make sure the same checks CI runs are green:
+
+```bash
+cargo fmt --all --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+```
+
+
 ## Before You Contribute
 
 We are open to new ideas and contributions that align with the project's goals and vision. However, if you're planning on working on something significantly different from what's already in the project, we strongly recommend getting in touch with us before you start.
