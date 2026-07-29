@@ -134,7 +134,7 @@ mod tests {
         let messages = template.format(&parameters).unwrap();
         assert_eq!(messages.len(), 1);
         assert_eq!(messages[0].role, Some(Role::User));
-        assert_eq!(messages[0].text(), "hello brief");
+        assert_eq!(messages[0].text_parts(), "hello brief");
     }
 
     #[test]
