@@ -4,7 +4,7 @@
 # - Locates libclang (needed by bindgen when building llama-cpp-sys-2)
 # - Points bindgen at the clang resource headers and glibc headers, which the
 #   Nix-provided libclang does not find on its own
-export PATH="$HOME/.cargo/bin:$PATH"
+export PATH="$HOME/.cargo/bin:/root/.cargo/bin:$PATH"
 if [ -z "${LIBCLANG_PATH:-}" ]; then
   _libclang="$(find /nix/store -maxdepth 4 -name 'libclang.so*' 2>/dev/null | head -1)"
   if [ -n "$_libclang" ]; then

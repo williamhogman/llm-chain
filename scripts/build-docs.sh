@@ -2,7 +2,8 @@
 # Builds the workspace rustdoc and stages it into dist/ so the docs can be
 # published as a static site.
 set -euo pipefail
-export PATH="$HOME/.cargo/bin:$PATH"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/rust-env.sh"
 
 cargo doc --workspace --no-deps
 
