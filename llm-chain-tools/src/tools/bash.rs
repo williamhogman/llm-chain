@@ -1,12 +1,14 @@
-use crate::description::{Describe, Format, ToolDescription};
-use crate::tool::{gen_invoke_function, Tool};
 use serde::{Deserialize, Serialize};
 use std::process::Command;
+
+use crate::description::{Describe, Format, ToolDescription};
+use crate::tool::{Tool, ToolError, gen_invoke_function};
 
 /// A tool that executes a bash command.
 pub struct BashTool {}
 
 impl BashTool {
+    /// Creates a new `BashTool`.
     pub fn new() -> Self {
         BashTool {}
     }
@@ -48,16 +50,12 @@ impl Describe for BashToolOutput {
 }
 
 impl BashTool {
-    fn invoke_typed(&self, input: &BashToolInput) -> Result<BashToolOutput, String> {
-        let output = Command::new("bash")
-            .arg("-c")
-            .arg(&input.cmd)
-            .output()
-            .map_err(|_e| "failed to execute process")?;
+    fn invoke_typed(&self, input: &BashToolInput) -> Result<BashToolOutput, ToolError> {
+        let output = Command::new("bash").arg("-c").arg(&input.cmd).output()?;
         Ok(BashToolOutput {
-            status: output.status.code().unwrap() as isize,
-            stderr: String::from_utf8(output.stderr).unwrap(),
-            stdout: String::from_utf8(output.stdout).unwrap(),
+            status: output.status.code().unwrap_or(-1) as isize,
+            stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+            stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
         })
     }
 }

@@ -1,25 +1,31 @@
 [package]
 name = "llm-chain"
-version = "0.1.4"
-edition = "2021"
-description = "A library for running chains of LLMs (such as ChatGPT) in series to complete complex tasks, such as text summation."
-license = "MIT"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "A library for chaining LLM invocations (such as ChatGPT or LLaMA) in series to complete complex tasks, such as text summarization."
+license.workspace = true
 keywords = ["llm", "langchain", "chatgpt", "chain"]
 categories = ["science"]
-authors = ["William Rudenmalm <william@sobel.io>"]
+authors.workspace = true
 readme = "../docs/README.md"
-repository = "https://github.com/sobelio/llm-chain/"
+repository.workspace = true
 
 [features]
 default = ["serialization"]
-serialization = ["dep:serde", "dep:serde_yaml"]
+serialization = ["dep:serde", "dep:serde_yaml_ng"]
 async = ["dep:tokio"]
 
 [dependencies]
-async-trait = "0.1.67"
-dynfmt = { version = "0.1.5", features = ["curly"], default-features = false }
-futures = "0.3.27"
-serde = { version = "1.0.159", optional = true, features = ["derive"] }
-serde_yaml = { version = "0.9.21", optional = true }
-thiserror = "1.0.40"
-tokio = { version = "1.27.0", optional = true, features = ["fs", "io-util"] }
+futures.workspace = true
+serde = { workspace = true, optional = true }
+serde_yaml_ng = { workspace = true, optional = true }
+thiserror.workspace = true
+tokio = { workspace = true, optional = true, features = ["fs", "io-util"] }
+trait-variant.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt"] }
+
+[lints]
+workspace = true

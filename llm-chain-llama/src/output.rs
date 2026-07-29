@@ -18,7 +18,7 @@ impl Output {
     /// A new `Output` instance with the combined string.
     pub fn combine(&self, other: &Output) -> Output {
         Output {
-            output: format!("{}\n{}", &self.output, &other.output),
+            output: format!("{}\n{}", self.output, other.output),
         }
     }
 }

@@ -1,22 +1,23 @@
 use llm_chain::PromptTemplate;
-use llm_chain::{traits::StepExt, Parameters};
+use llm_chain::{Parameters, traits::StepExt};
 use llm_chain_openai::chatgpt::{
     ChatPromptTemplate, Executor, MessagePromptTemplate, Model, Role, Step,
 };
+use llm_chain_tools::ToolCollection;
 use llm_chain_tools::create_tool_prompt_segment;
 use llm_chain_tools::tools::{BashTool, ExitTool};
-use llm_chain_tools::ToolCollection;
 use std::boxed::Box;
-// A simple example generating a prompt with some tools.
+// A simple example of an agent performing a task with tools.
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
     let tool_collection =
         ToolCollection::new(vec![Box::new(BashTool::new()), Box::new(ExitTool::new())]);
     let template =
-        create_tool_prompt_segment(&tool_collection, "Please perform the following task: {}");
+        create_tool_prompt_segment(&tool_collection, "Please perform the following task: {}")
+            .unwrap();
     let task = "Figure out my IP address";
-    let prompt = template.format(&Parameters::new_with_text(task));
+    let prompt = template.format(&Parameters::new_with_text(task)).unwrap();
 
     println!("Prompt: {}", prompt);
     let exec = Executor::new_default();
@@ -30,9 +31,13 @@ async fn main() {
         (Role::User, &prompt).into(),
     ]);
     for _ in 1..5 {
-        let chain = Step::new(Model::ChatGPT3_5Turbo, chat.clone()).to_chain();
-        let res = chain.run(Parameters::new(), exec.clone()).await.unwrap();
-        let message_text = res.choices.first().unwrap().message.content.clone();
+        let chain = Step::new(Model::default(), chat.clone()).to_chain();
+        let res = chain.run(Parameters::new(), &exec).await.unwrap();
+        let message_text = res
+            .choices
+            .first()
+            .and_then(|c| c.message.content.clone())
+            .unwrap_or_default();
         println!("Assistant: {}", message_text);
         println!("=============");
         chat.add(MessagePromptTemplate::new(
@@ -49,10 +54,12 @@ async fn main() {
                 println!("LLMCHAIN: {}\n", x)
             }
             Err(e) => {
-                let pt = template.format(&Parameters::new_with_text(format!(
-                    "Correct your output and perform the task - {}. Your task was: {}",
-                    e, task
-                )));
+                let pt = template
+                    .format(&Parameters::new_with_text(format!(
+                        "Correct your output and perform the task - {}. Your task was: {}",
+                        e, task
+                    )))
+                    .unwrap();
                 let pt: PromptTemplate = pt.into();
                 chat.add(MessagePromptTemplate::new(Role::User, pt));
                 println!("Error: {}", e)

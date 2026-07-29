@@ -1,11 +1,11 @@
-use llm_chain::{traits::StepExt, Parameters};
+use llm_chain::{Parameters, traits::StepExt};
 use llm_chain_openai::chatgpt::{Executor, Model, Role, Step};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
     let exec = Executor::new_default();
     let chain = Step::new(
-        Model::ChatGPT3_5Turbo,
+        Model::default(),
         [
             (
                 Role::System,
@@ -15,6 +15,12 @@ async fn main() {
         ],
     )
     .to_chain();
-    let res = chain.run(Parameters::new(), exec).await.unwrap();
-    println!("{:?}", res);
+    let res = chain.run(Parameters::new(), &exec).await.unwrap();
+    println!(
+        "{}",
+        res.choices
+            .first()
+            .and_then(|c| c.message.content.as_deref())
+            .unwrap_or_default()
+    );
 }

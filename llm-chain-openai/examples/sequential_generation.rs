@@ -6,7 +6,7 @@ async fn main() {
     let exec = Executor::new_default();
     let chain = Chain::new(vec![
         Step::new(
-            Model::ChatGPT3_5Turbo,
+            Model::default(),
             [
                 (
                     Role::System,
@@ -19,7 +19,7 @@ async fn main() {
             ],
         ),
         Step::new(
-            Model::ChatGPT3_5Turbo,
+            Model::default(),
             [
                 (
                     Role::System,
@@ -35,9 +35,15 @@ async fn main() {
     let res = chain
         .run(
             vec![("name", "Emil"), ("date", "February 30th 2023")].into(),
-            exec,
+            &exec,
         )
         .await
         .unwrap();
-    println!("{:?}", res);
+    println!(
+        "{}",
+        res.choices
+            .first()
+            .and_then(|c| c.message.content.as_deref())
+            .unwrap_or_default()
+    );
 }

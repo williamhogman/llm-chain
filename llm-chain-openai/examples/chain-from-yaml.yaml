@@ -1,6 +1,6 @@
 metadata: {}
 data:
-- model: ChatGPT3_5Turbo
+- model: gpt-5-mini
   prompt:
     messages:
     - role: system

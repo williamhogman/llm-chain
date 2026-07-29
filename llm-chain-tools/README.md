@@ -17,12 +17,15 @@ use std::boxed::Box;
 fn main() {
     let tool_collection = ToolCollection::new(vec![Box::new(BashTool::new())]);
     let prompt =
-        create_tool_prompt_segment(&tool_collection, "Please perform the following task: {}");
+        create_tool_prompt_segment(&tool_collection, "Please perform the following task: {}")
+            .unwrap();
     println!(
         "{}",
-        prompt.format(&Parameters::new_with_text(
-            "Find the file GOAL.txt and tell me its content."
-        ))
+        prompt
+            .format(&Parameters::new_with_text(
+                "Find the file GOAL.txt and tell me its content."
+            ))
+            .unwrap()
     );
 }
 
@@ -41,9 +44,9 @@ To start using `llm-chain-tools`, add it as a dependency in your Cargo.toml:
 
 ```toml
 [dependencies]
-llm-chain = "0.1.0"
-llm-chain-openai = "0.1.0"
-llm-chain-tools = "0.1.0"
+llm-chain = "0.2.0"
+llm-chain-openai = "0.2.0"
+llm-chain-tools = "0.2.0"
 ```
 
 Then, refer to the documentation and examples to learn how to create and manage tools, integrate them into prompts, and more.
