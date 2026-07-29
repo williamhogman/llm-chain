@@ -176,6 +176,8 @@ impl traits::Executor for Executor {
                 + other.usage_metadata.candidates_token_count,
             thoughts_token_count: output.usage_metadata.thoughts_token_count
                 + other.usage_metadata.thoughts_token_count,
+            cached_content_token_count: output.usage_metadata.cached_content_token_count
+                + other.usage_metadata.cached_content_token_count,
             total_token_count: output.usage_metadata.total_token_count
                 + other.usage_metadata.total_token_count,
         };
@@ -253,6 +255,7 @@ mod tests {
                 prompt_token_count: prompt,
                 candidates_token_count: output,
                 thoughts_token_count: 0,
+                cached_content_token_count: 0,
                 total_token_count: prompt + output,
             },
             model_version: None,
