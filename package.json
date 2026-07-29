@@ -1,0 +1,13 @@
+{
+  "name": "llm-chain-workspace",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Shim for Lovable's Node-oriented tooling. This is a Rust workspace; every script delegates to the cargo-based scripts in scripts/.",
+  "scripts": {
+    "dev": "bash scripts/dev-preview.sh",
+    "build": "bash scripts/build-docs.sh",
+    "build:dev": "bash scripts/build-docs.sh",
+    "test": "bash -c 'source scripts/rust-env.sh && cargo test --workspace'",
+    "lint": "bash -c 'source scripts/rust-env.sh && cargo clippy --workspace --all-targets -- -D warnings && cargo fmt --all --check'"
+  }
+}
