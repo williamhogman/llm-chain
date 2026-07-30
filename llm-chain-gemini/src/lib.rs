@@ -1,15 +1,25 @@
 //! # llm-chain-gemini
 //!
 //! This crate implements `llm-chain` steps and executors for Google's Gemini models
-//! via the [Gemini API](https://ai.google.dev/api/generate-content).
+//! via the [Gemini API](https://ai.google.dev/api/generate-content) — and, with the
+//! same wire format, via **Vertex AI** on Google Cloud.
 //!
 //! The crate ships its own minimal, dependency-light API client built on `reqwest` with
 //! rustls — there is no unofficial SDK in the dependency tree to fall out of date.
 //!
-//! It targets the long-stable `generateContent` REST surface (`v1beta`). Google
-//! also ships a newer Interactions API; the wire types here are scoped to the
-//! [`generate_content`] module so an `interactions` module can sit alongside it
-//! once that API settles.
+//! It targets the long-stable `generateContent` REST surface (`v1beta` on the
+//! consumer API, `v1` on Vertex). Google also ships a newer Interactions API;
+//! the wire types here are scoped to the [`generate_content`] module so an
+//! `interactions` module can sit alongside it once that API settles.
+//!
+//! Three front doors, one executor:
+//!
+//! - [`generate_content::Executor::new_default`] — the consumer Gemini API with a
+//!   `GEMINI_API_KEY`/`GOOGLE_API_KEY`
+//! - [`generate_content::Executor::vertex`] — Vertex AI, scoped to a Google Cloud
+//!   project and location, authenticated with an OAuth2 access token
+//! - [`generate_content::Executor::vertex_express`] — Vertex AI Express Mode with
+//!   just an API key, no project setup
 //!
 
 //! ## Getting started

@@ -9,6 +9,9 @@
 //!   response format
 //! - [`Step`] — a model, a prompt and options, ready to be chained
 //! - [`Executor`] — runs steps against the API
+//! - [`AzureExecutor`] / [`AzureV1Config`] — the same executor pointed at Azure
+//!   OpenAI's OpenAI-compatible v1 surface
+mod azure;
 mod error;
 mod executor;
 mod options;
@@ -17,8 +20,9 @@ mod step;
 
 pub use async_openai::config::OpenAIConfig;
 pub use async_openai::types::chat::{ReasoningEffort, ResponseFormat, Verbosity};
+pub use azure::{AZURE_API_KEY_HEADER, AZURE_V1_PATH, AzureV1Config};
 pub use error::FormatError;
-pub use executor::Executor;
+pub use executor::{AzureExecutor, Executor};
 pub use options::Options;
 pub use prompt::{ChatPromptTemplate, MessagePromptTemplate, Role};
 pub use step::{Model, Step};

@@ -13,6 +13,9 @@
 //!   (temperature, reasoning effort, response format, …)
 //! - [`chat::Executor`] — runs formatted steps against the API, ready to plug into
 //!   sequential and map-reduce chains
+//! - [`chat::AzureExecutor`] — the same executor pointed at Azure OpenAI's
+//!   OpenAI-compatible v1 surface (`AzureExecutor::azure("my-resource", key)`),
+//!   with both API-key and Microsoft Entra ID authentication
 //! - Full serialization support, so chains can be stored as YAML and loaded back
 //!
 //! # Example

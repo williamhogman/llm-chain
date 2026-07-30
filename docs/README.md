@@ -35,6 +35,7 @@ println!("{:?}", res);
 - **Anthropic support**: Claude via the Messages API — the Claude 5 generation (Fable, Opus, Sonnet) and Haiku 4.5 — with system prompts, sampling controls, reasoning effort and extended thinking, on a minimal built-in client (reqwest + rustls, no third-party SDK).
 - **Google Gemini support**: Gemini via the `generateContent` API — the Gemini 3 generation (3.6/3.5 Flash, 3.1 Pro, Flash-Lite) and the 2.5 family — with system instructions, sampling controls and thinking level/budget, on the same minimal built-in client.
 - **Ollama support**: Any model served by Ollama — locally (llama3.3, qwen3, gemma3, deepseek-r1, gpt-oss, …) with zero API keys, or via Ollama's cloud — with sampling controls, thinking, JSON mode/schemas and generation timings, on the same minimal built-in client.
+- **Hyperscaler front doors**: The same chains run against the clouds' managed AI surfaces — **AWS Bedrock** (the model-agnostic Converse API: Claude, Nova, Llama, Mistral and more behind one wire format), **Google Vertex AI** (project-scoped or Express Mode, same executor as Gemini) and **Azure OpenAI** (the OpenAI-compatible v1 surface with API-key or Microsoft Entra ID auth, same executor as OpenAI).
 - **Local models via llama.cpp**: Run LLaMA, Mistral, Qwen, Gemma and any other GGUF model fully offline, with optional GPU acceleration (CUDA, Metal, Vulkan).
 - **Tools**: Enhance your AI agents' capabilities by giving them access to various tools, such as running Bash commands or executing Python scripts, enabling more complex and powerful interactions.
 - **Typed errors, no panics**: Formatting, execution and chain errors are all surfaced as typed `Result`s.
@@ -49,9 +50,10 @@ To start using `llm-chain`, add it as a dependency in your `Cargo.toml` (require
 ```toml
 [dependencies]
 llm-chain = "0.2.0"
-llm-chain-openai = "0.2.0"     # OpenAI (GPT)
+llm-chain-openai = "0.2.0"     # OpenAI (GPT) + Azure OpenAI
 llm-chain-anthropic = "0.2.0"  # Anthropic (Claude)
-llm-chain-gemini = "0.2.0"     # Google (Gemini)
+llm-chain-gemini = "0.2.0"     # Google (Gemini) + Vertex AI
+llm-chain-bedrock = "0.2.0"    # AWS Bedrock (Converse API)
 llm-chain-ollama = "0.2.0"     # Ollama (local or cloud open-weight models)
 llm-chain-llama = "0.2.0"      # Local GGUF models via llama.cpp
 ```
@@ -109,7 +111,35 @@ let res = chain.run(Parameters::new(), &exec).await?;
 println!("{}", res.text());
 ```
 
-Then, refer to the [documentation](https://docs.rs/llm-chain) and the examples ([OpenAI](/llm-chain-openai/examples), [Anthropic](/llm-chain-anthropic/examples), [Gemini](/llm-chain-gemini/examples), [Ollama](/llm-chain-ollama/examples)) to learn how to create prompt templates, chains, and more.
+AWS Bedrock example (one Converse wire format for Claude, Nova, Llama, Mistral, …):
+
+```rust
+use llm_chain::{Parameters, traits::StepExt};
+use llm_chain_bedrock::converse::{Executor, Model, Role, Step};
+
+let exec = Executor::new_default()?; // reads AWS_BEARER_TOKEN_BEDROCK, honors AWS_REGION
+let chain = Step::new(
+    Model::default(), // global.anthropic.claude-sonnet-5-v1:0
+    [(Role::User, "Make a personalized greet for Joe")],
+)
+.with_system("You are a bot for making personalized greetings")
+.to_chain();
+let res = chain.run(Parameters::new(), &exec).await?;
+println!("{}", res.text());
+```
+
+Already on a cloud? The same chains run against the hyperscalers' managed surfaces:
+
+```rust
+// Azure OpenAI — the OpenAI-compatible v1 surface, deployment name as the model.
+let exec = llm_chain_openai::chat::AzureExecutor::azure("my-resource", api_key);
+// Vertex AI — project-scoped with an OAuth2 token…
+let exec = llm_chain_gemini::generate_content::Executor::vertex("my-project", "europe-north1", token);
+// …or Express Mode with just an API key.
+let exec = llm_chain_gemini::generate_content::Executor::vertex_express(api_key);
+```
+
+Then, refer to the [documentation](https://docs.rs/llm-chain) and the examples ([OpenAI](/llm-chain-openai/examples), [Anthropic](/llm-chain-anthropic/examples), [Gemini](/llm-chain-gemini/examples), [Bedrock](/llm-chain-bedrock/examples), [Ollama](/llm-chain-ollama/examples)) to learn how to create prompt templates, chains, and more.
 
 ## Contributing 🤝
 
