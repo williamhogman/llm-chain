@@ -1,7 +1,7 @@
 #[cfg(feature = "serialization")]
 use serde::{Deserialize, Serialize};
 
-use super::types::{ChatRequest, Format, Think};
+use super::types::{ChatRequest, Format, Think, Tool};
 
 /// Per-step request options for Ollama's chat API.
 ///

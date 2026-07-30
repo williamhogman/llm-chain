@@ -18,5 +18,6 @@ pub use options::Options;
 pub use prompt::{ChatPromptTemplate, MessagePromptTemplate};
 pub use step::{DEFAULT_MODEL, Model, Step};
 pub use types::{
-    ChatRequest, ChatResponse, DoneReason, Format, Message, ModelOptions, Role, Think,
+    ChatRequest, ChatResponse, DoneReason, Format, FunctionCall, Message, ModelOptions, Role,
+    Think, Tool, ToolCall, ToolFunction,
 };
