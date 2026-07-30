@@ -14,6 +14,16 @@ impl FormatPart {
             purpose: purpose.to_string(),
         }
     }
+
+    /// The parameter name.
+    pub fn key(&self) -> &str {
+        &self.key
+    }
+
+    /// What the parameter is for.
+    pub fn purpose(&self) -> &str {
+        &self.purpose
+    }
 }
 
 impl<K: Into<String>, P: Into<String>> From<(K, P)> for FormatPart {
@@ -29,6 +39,11 @@ pub struct Format {
 impl Format {
     pub fn new(parts: Vec<FormatPart>) -> Self {
         Format { parts }
+    }
+
+    /// The parameters making up this format.
+    pub fn parts(&self) -> &[FormatPart] {
+        &self.parts
     }
 }
 
