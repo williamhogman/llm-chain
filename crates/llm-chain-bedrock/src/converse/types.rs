@@ -42,6 +42,93 @@ pub struct ReasoningContent {
     pub reasoning_text: Option<ReasoningText>,
 }
 
+/// A tool call made by the model, carried in a [`ContentBlock::ToolUse`].
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ToolUseBlock {
+    /// The unique id of this call; echo it back as
+    /// [`ToolResultBlock::tool_use_id`].
+    pub tool_use_id: String,
+    /// The name of the tool to invoke.
+    pub name: String,
+    /// The arguments as a JSON object, conforming to the tool's input schema.
+    #[serde(default)]
+    pub input: serde_json::Value,
+}
+
+/// One piece of a tool result: JSON or text.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ToolResultContent {
+    /// A JSON result.
+    Json {
+        /// The result value.
+        json: serde_json::Value,
+    },
+    /// A text result.
+    Text {
+        /// The result text.
+        text: String,
+    },
+}
+
+/// Whether a tool ran successfully.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ToolResultStatus {
+    /// The tool ran successfully (the default when omitted).
+    Success,
+    /// The tool failed; the model sees the content as an error message.
+    Error,
+}
+
+/// The result of running a tool, carried in a [`ContentBlock::ToolResult`]
+/// inside the user message that answers a tool-use turn.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ToolResultBlock {
+    /// The id of the [`ToolUseBlock`] this result answers.
+    pub tool_use_id: String,
+    /// The result content.
+    pub content: Vec<ToolResultContent>,
+    /// Whether the tool succeeded; omitted means success.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub status: Option<ToolResultStatus>,
+}
+
+impl ToolResultBlock {
+    /// Creates a successful text tool result.
+    pub fn text<I: Into<String>, C: Into<String>>(tool_use_id: I, content: C) -> Self {
+        Self {
+            tool_use_id: tool_use_id.into(),
+            content: vec![ToolResultContent::Text {
+                text: content.into(),
+            }],
+            status: None,
+        }
+    }
+
+    /// Creates a successful JSON tool result.
+    pub fn json<I: Into<String>>(tool_use_id: I, json: serde_json::Value) -> Self {
+        Self {
+            tool_use_id: tool_use_id.into(),
+            content: vec![ToolResultContent::Json { json }],
+            status: None,
+        }
+    }
+
+    /// Creates a failed tool result; the model sees `message` as an error.
+    pub fn error<I: Into<String>, M: Into<String>>(tool_use_id: I, message: M) -> Self {
+        Self {
+            tool_use_id: tool_use_id.into(),
+            content: vec![ToolResultContent::Text {
+                text: message.into(),
+            }],
+            status: Some(ToolResultStatus::Error),
+        }
+    }
+}
+
 /// One block of content in a message.
 ///
 /// The Converse API models content as a union with exactly one member set per
@@ -60,7 +147,20 @@ pub enum ContentBlock {
         #[serde(rename = "reasoningContent")]
         reasoning_content: ReasoningContent,
     },
-    /// Any block type this crate does not model (images, documents, tool use, …).
+    /// A tool call made by the model; run the tool and answer with a
+    /// [`ContentBlock::ToolResult`] in the next user message.
+    ToolUse {
+        /// The tool call.
+        #[serde(rename = "toolUse")]
+        tool_use: ToolUseBlock,
+    },
+    /// The result of running a tool, sent back in a user message.
+    ToolResult {
+        /// The tool result.
+        #[serde(rename = "toolResult")]
+        tool_result: ToolResultBlock,
+    },
+    /// Any block type this crate does not model (images, documents, …).
     Other(serde_json::Value),
 }
 
@@ -82,6 +182,21 @@ impl Message {
         }
     }
 
+    /// Creates the user message that answers tool calls: one
+    /// [`ContentBlock::ToolResult`] block per invoked tool.
+    ///
+    /// The API requires tool results to be the next message after the
+    /// assistant's tool-use turn, and every `toolUseId` must be answered.
+    pub fn tool_results<I: IntoIterator<Item = ToolResultBlock>>(results: I) -> Self {
+        Self {
+            role: Role::User,
+            content: results
+                .into_iter()
+                .map(|tool_result| ContentBlock::ToolResult { tool_result })
+                .collect(),
+        }
+    }
+
     /// Concatenates every text block into a single string, skipping reasoning
     /// and unknown blocks.
     pub fn text_blocks(&self) -> String {
@@ -93,6 +208,79 @@ impl Message {
         }
         out
     }
+}
+
+/// The JSON Schema wrapper the Converse API expects for tool inputs.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ToolInputSchema {
+    /// A [JSON Schema](https://json-schema.org/) object describing the tool's arguments.
+    pub json: serde_json::Value,
+}
+
+/// A tool the model may call, nested inside [`Tool`].
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ToolSpec {
+    /// The tool name the model calls it by.
+    pub name: String,
+    /// What the tool does and when to use it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// The tool's input schema.
+    pub input_schema: ToolInputSchema,
+}
+
+impl ToolSpec {
+    /// Creates a tool spec from a name, description and JSON Schema.
+    pub fn new<N: Into<String>, D: Into<String>>(
+        name: N,
+        description: D,
+        input_schema: serde_json::Value,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            description: Some(description.into()),
+            input_schema: ToolInputSchema { json: input_schema },
+        }
+    }
+}
+
+/// One entry in the request's tool list (a union on the wire; this crate
+/// models tool specs).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Tool {
+    /// The tool spec.
+    pub tool_spec: ToolSpec,
+}
+
+/// How the model chooses among the request's tools.
+///
+/// Not every model family supports `Any` and `Tool`; Bedrock returns a
+/// validation error for unsupported combinations.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ToolChoice {
+    /// The model decides whether to call a tool (the default).
+    Auto {},
+    /// The model must call one of the provided tools.
+    Any {},
+    /// The model must call the named tool.
+    Tool {
+        /// The name of the tool to call.
+        name: String,
+    },
+}
+
+/// Tool configuration, sent as `toolConfig`.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ToolConfiguration {
+    /// The tools the model may call.
+    pub tools: Vec<Tool>,
+    /// How the model chooses among them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_choice: Option<ToolChoice>,
 }
 
 /// One block of system instructions.
@@ -152,6 +340,29 @@ pub struct ConverseRequest {
     /// passed through verbatim (e.g. Claude's `thinking`, `top_k`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub additional_model_request_fields: Option<serde_json::Value>,
+    /// Tools the model may call, set with
+    /// [`Options::with_tools`](super::Options::with_tools).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_config: Option<ToolConfiguration>,
+}
+
+impl ConverseRequest {
+    /// Extends this request to continue a tool-calling conversation: appends
+    /// the assistant's message from `response` (echoing its `toolUse` blocks
+    /// verbatim) followed by a user message carrying `results`.
+    ///
+    /// Every [`ToolUseBlock::tool_use_id`] in the response must be answered by
+    /// exactly one result.
+    pub fn with_tool_results<I>(mut self, response: &ConverseResponse, results: I) -> Self
+    where
+        I: IntoIterator<Item = ToolResultBlock>,
+    {
+        if let Some(message) = response.output.as_ref().and_then(|o| o.message.as_ref()) {
+            self.messages.push(message.clone());
+        }
+        self.messages.push(Message::tool_results(results));
+        self
+    }
 }
 
 /// Why the model stopped generating.
@@ -257,21 +468,42 @@ impl ConverseResponse {
         }
         (!out.is_empty()).then_some(out)
     }
+
+    /// Returns the tool calls in the output message, in order. Empty unless
+    /// [`stop_reason`](Self::stop_reason) is [`StopReason::ToolUse`].
+    pub fn tool_uses(&self) -> Vec<&ToolUseBlock> {
+        let Some(message) = self.output.as_ref().and_then(|o| o.message.as_ref()) else {
+            return Vec::new();
+        };
+        message
+            .content
+            .iter()
+            .filter_map(|block| match block {
+                ContentBlock::ToolUse { tool_use } => Some(tool_use),
+                _ => None,
+            })
+            .collect()
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn request_serializes_minimally() {
-        let request = ConverseRequest {
-            model_id: "global.anthropic.claude-sonnet-5-20260203-v1:0".to_string(),
+    fn minimal_request(model_id: &str) -> ConverseRequest {
+        ConverseRequest {
+            model_id: model_id.to_string(),
             messages: vec![Message::text(Role::User, "hi")],
             system: None,
             inference_config: None,
             additional_model_request_fields: None,
-        };
+            tool_config: None,
+        }
+    }
+
+    #[test]
+    fn request_serializes_minimally() {
+        let request = minimal_request("global.anthropic.claude-sonnet-5-20260203-v1:0");
         let json = serde_json::to_value(&request).unwrap();
         assert_eq!(
             json,
@@ -284,8 +516,6 @@ mod tests {
     #[test]
     fn system_and_inference_config_serialize_in_camel_case() {
         let request = ConverseRequest {
-            model_id: "amazon.nova-pro-v1:0".to_string(),
-            messages: vec![Message::text(Role::User, "hi")],
             system: Some(vec![SystemContentBlock {
                 text: "be brief".to_string(),
             }]),
@@ -295,7 +525,7 @@ mod tests {
                 top_p: None,
                 stop_sequences: Some(vec!["END".to_string()]),
             }),
-            additional_model_request_fields: None,
+            ..minimal_request("amazon.nova-pro-v1:0")
         };
         let json = serde_json::to_value(&request).unwrap();
         assert_eq!(json["system"], serde_json::json!([{"text": "be brief"}]));
@@ -314,7 +544,7 @@ mod tests {
                         {"reasoningContent": {"reasoningText": {"text": "hmm", "signature": "sig"}}},
                         {"text": "Hello"},
                         {"text": ", world"},
-                        {"toolUse": {"toolUseId": "t1", "name": "search", "input": {}}}
+                        {"image": {"format": "png", "source": {"bytes": "aGk="}}}
                     ]
                 }
             },
@@ -357,5 +587,148 @@ mod tests {
         let response: ConverseResponse = serde_json::from_str(json).unwrap();
         assert_eq!(response.usage.cache_read_input_tokens, 3);
         assert_eq!(response.usage.cache_write_input_tokens, 1);
+    }
+
+    #[test]
+    fn tool_config_serializes_in_camel_case() {
+        let request = ConverseRequest {
+            tool_config: Some(ToolConfiguration {
+                tools: vec![Tool {
+                    tool_spec: ToolSpec::new(
+                        "get_weather",
+                        "Get the current weather",
+                        serde_json::json!({
+                            "type": "object",
+                            "properties": {"city": {"type": "string"}},
+                            "required": ["city"]
+                        }),
+                    ),
+                }],
+                tool_choice: Some(ToolChoice::Auto {}),
+            }),
+            ..minimal_request("amazon.nova-pro-v1:0")
+        };
+        let json = serde_json::to_value(&request).unwrap();
+        let spec = &json["toolConfig"]["tools"][0]["toolSpec"];
+        assert_eq!(spec["name"], "get_weather");
+        assert_eq!(spec["description"], "Get the current weather");
+        assert_eq!(spec["inputSchema"]["json"]["type"], "object");
+        assert_eq!(
+            json["toolConfig"]["toolChoice"],
+            serde_json::json!({"auto": {}})
+        );
+    }
+
+    #[test]
+    fn tool_choice_variants_serialize_correctly() {
+        assert_eq!(
+            serde_json::to_value(ToolChoice::Any {}).unwrap(),
+            serde_json::json!({"any": {}})
+        );
+        assert_eq!(
+            serde_json::to_value(ToolChoice::Tool {
+                name: "get_weather".to_string()
+            })
+            .unwrap(),
+            serde_json::json!({"tool": {"name": "get_weather"}})
+        );
+    }
+
+    #[test]
+    fn tool_use_blocks_parse_and_are_extracted() {
+        let json = r#"{
+            "output": {
+                "message": {
+                    "role": "assistant",
+                    "content": [
+                        {"text": "Let me check."},
+                        {"toolUse": {"toolUseId": "t1", "name": "get_weather", "input": {"city": "Stockholm"}}}
+                    ]
+                }
+            },
+            "stopReason": "tool_use",
+            "usage": {"inputTokens": 10, "outputTokens": 20, "totalTokens": 30}
+        }"#;
+        let response: ConverseResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(response.stop_reason, Some(StopReason::ToolUse));
+        let calls = response.tool_uses();
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].tool_use_id, "t1");
+        assert_eq!(calls[0].name, "get_weather");
+        assert_eq!(calls[0].input["city"], "Stockholm");
+    }
+
+    #[test]
+    fn with_tool_results_extends_the_conversation() {
+        let response: ConverseResponse = serde_json::from_str(
+            r#"{
+                "output": {
+                    "message": {
+                        "role": "assistant",
+                        "content": [
+                            {"toolUse": {"toolUseId": "t1", "name": "get_weather", "input": {"city": "Stockholm"}}}
+                        ]
+                    }
+                },
+                "stopReason": "tool_use",
+                "usage": {"inputTokens": 1, "outputTokens": 2, "totalTokens": 3}
+            }"#,
+        )
+        .unwrap();
+
+        let request = minimal_request("amazon.nova-pro-v1:0").with_tool_results(
+            &response,
+            [ToolResultBlock::json(
+                "t1",
+                serde_json::json!({"temperature_c": -3}),
+            )],
+        );
+
+        assert_eq!(request.messages.len(), 3);
+        assert_eq!(request.messages[1].role, Role::Assistant);
+        // The assistant's toolUse block is echoed back verbatim.
+        let json = serde_json::to_value(&request).unwrap();
+        assert_eq!(
+            json["messages"][1]["content"][0]["toolUse"]["toolUseId"],
+            "t1"
+        );
+        assert_eq!(json["messages"][2]["role"], "user");
+        assert_eq!(
+            json["messages"][2]["content"][0]["toolResult"],
+            serde_json::json!({
+                "toolUseId": "t1",
+                "content": [{"json": {"temperature_c": -3}}]
+            })
+        );
+    }
+
+    #[test]
+    fn tool_result_helpers_set_status() {
+        let ok = ToolResultBlock::text("t1", "done");
+        assert_eq!(ok.status, None);
+        let err = ToolResultBlock::error("t2", "boom");
+        assert_eq!(err.status, Some(ToolResultStatus::Error));
+        let json = serde_json::to_value(&err).unwrap();
+        assert_eq!(json["status"], "error");
+        assert_eq!(json["content"][0]["text"], "boom");
+    }
+
+    #[test]
+    fn tool_result_content_round_trips_untagged() {
+        let block = ToolResultBlock {
+            tool_use_id: "t1".to_string(),
+            content: vec![
+                ToolResultContent::Json {
+                    json: serde_json::json!({"a": 1}),
+                },
+                ToolResultContent::Text {
+                    text: "note".to_string(),
+                },
+            ],
+            status: None,
+        };
+        let json = serde_json::to_string(&block).unwrap();
+        let back: ToolResultBlock = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, block);
     }
 }

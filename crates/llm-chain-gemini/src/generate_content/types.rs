@@ -20,10 +20,50 @@ pub enum Role {
     Model,
 }
 
-/// One part of a content entry. This crate models text parts; anything else
-/// (inline data, function calls, …) deserializes with `text` empty and is
-/// skipped by [`Content::text`].
+/// A function call made by the model, carried in a [`Part`].
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FunctionCall {
+    /// The name of the function to invoke.
+    pub name: String,
+    /// The arguments as a JSON object, conforming to the declaration's `parameters`.
+    #[serde(default, skip_serializing_if = "serde_json::Value::is_null")]
+    pub args: serde_json::Value,
+}
+
+/// The result of running a function, sent back to the model in a [`Part`].
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FunctionResponse {
+    /// The name of the function that was run.
+    pub name: String,
+    /// The result as a JSON object.
+    pub response: serde_json::Value,
+}
+
+impl FunctionResponse {
+    /// Creates a function response.
+    ///
+    /// The API requires `response` to be a JSON object; non-object values are
+    /// wrapped as `{"result": value}`.
+    pub fn new<N: Into<String>>(name: N, response: serde_json::Value) -> Self {
+        let response = if response.is_object() {
+            response
+        } else {
+            serde_json::json!({ "result": response })
+        };
+        Self {
+            name: name.into(),
+            response,
+        }
+    }
+}
+
+/// One part of a content entry: text, a function call, or a function
+/// response. Anything else (inline data, …) deserializes with every field
+/// empty and is skipped by [`Content::text_parts`].
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Part {
     /// The text of this part.
     #[serde(default, skip_serializing_if = "String::is_empty")]
@@ -32,6 +72,34 @@ pub struct Part {
     /// (returned when thoughts are requested).
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub thought: bool,
+    /// A function call made by the model.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub function_call: Option<FunctionCall>,
+    /// The result of running a function, sent back to the model.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub function_response: Option<FunctionResponse>,
+    /// Opaque reasoning signature; echo it back verbatim when continuing a
+    /// function-calling conversation with a Gemini 3-generation model.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub thought_signature: Option<String>,
+}
+
+impl Part {
+    /// Creates a text part.
+    pub fn text<S: Into<String>>(text: S) -> Self {
+        Self {
+            text: text.into(),
+            ..Self::default()
+        }
+    }
+
+    /// Creates a function-response part.
+    pub fn function_response(function_response: FunctionResponse) -> Self {
+        Self {
+            function_response: Some(function_response),
+            ..Self::default()
+        }
+    }
 }
 
 /// A content entry: a role plus a list of parts.
@@ -50,10 +118,7 @@ impl Content {
     pub fn text<S: Into<String>>(role: Role, text: S) -> Self {
         Self {
             role: Some(role),
-            parts: vec![Part {
-                text: text.into(),
-                thought: false,
-            }],
+            parts: vec![Part::text(text)],
         }
     }
 
@@ -61,10 +126,19 @@ impl Content {
     pub fn system<S: Into<String>>(text: S) -> Self {
         Self {
             role: None,
-            parts: vec![Part {
-                text: text.into(),
-                thought: false,
-            }],
+            parts: vec![Part::text(text)],
+        }
+    }
+
+    /// Creates the user entry that answers function calls: one
+    /// [`Part::function_response`] per invoked function.
+    pub fn function_responses<I: IntoIterator<Item = FunctionResponse>>(responses: I) -> Self {
+        Self {
+            role: Some(Role::User),
+            parts: responses
+                .into_iter()
+                .map(Part::function_response)
+                .collect(),
         }
     }
 
@@ -78,6 +152,87 @@ impl Content {
         }
         out
     }
+
+    /// The function calls in this entry, in order.
+    pub fn function_calls(&self) -> impl Iterator<Item = &FunctionCall> {
+        self.parts
+            .iter()
+            .filter_map(|part| part.function_call.as_ref())
+    }
+}
+
+/// A function the model may call, declared in a [`Tool`].
+///
+/// `parameters` is a [JSON Schema](https://json-schema.org/) object (OpenAPI
+/// 3.0 subset) describing the function's arguments.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FunctionDeclaration {
+    /// The function name the model calls it by.
+    pub name: String,
+    /// What the function does and when to use it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// JSON Schema for the function's arguments.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parameters: Option<serde_json::Value>,
+}
+
+impl FunctionDeclaration {
+    /// Creates a function declaration from a name, description and JSON Schema.
+    pub fn new<N: Into<String>, D: Into<String>>(
+        name: N,
+        description: D,
+        parameters: serde_json::Value,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            description: Some(description.into()),
+            parameters: Some(parameters),
+        }
+    }
+}
+
+/// A tool made available to the model: a set of function declarations.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Tool {
+    /// The functions in this tool.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub function_declarations: Vec<FunctionDeclaration>,
+}
+
+/// How the model chooses among the declared functions.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum FunctionCallingMode {
+    /// The model decides whether to call a function (the API default).
+    Auto,
+    /// The model must call a function.
+    Any,
+    /// The model must not call any function.
+    None,
+}
+
+/// Function-calling behavior, nested inside [`ToolConfig`].
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FunctionCallingConfig {
+    /// The function-calling mode.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mode: Option<FunctionCallingMode>,
+    /// With [`FunctionCallingMode::Any`], restricts the model to these functions.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub allowed_function_names: Option<Vec<String>>,
+}
+
+/// Tool behavior controls, sent as `toolConfig`.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ToolConfig {
+    /// Function-calling behavior.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub function_calling_config: Option<FunctionCallingConfig>,
 }
 
 /// Thinking configuration, nested inside [`GenerationConfig`].
@@ -169,6 +324,38 @@ pub struct GenerateContentRequest {
     /// Sampling and output controls.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub generation_config: Option<GenerationConfig>,
+    /// Tools the model may call, set with
+    /// [`Options::with_tools`](super::Options::with_tools).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tools: Option<Vec<Tool>>,
+    /// Tool behavior controls, set with
+    /// [`Options::with_function_calling_mode`](super::Options::with_function_calling_mode).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_config: Option<ToolConfig>,
+}
+
+impl GenerateContentRequest {
+    /// Continues a function-calling conversation: appends the model turn from
+    /// `response` (preserving thought signatures) followed by a user turn
+    /// carrying the function responses.
+    ///
+    /// Execute the returned request to get the model's next turn — either the
+    /// final answer or another round of function calls.
+    pub fn with_function_responses<I: IntoIterator<Item = FunctionResponse>>(
+        mut self,
+        response: &GenerateContentResponse,
+        responses: I,
+    ) -> Self {
+        if let Some(content) = response
+            .candidates
+            .first()
+            .and_then(|candidate| candidate.content.as_ref())
+        {
+            self.contents.push(content.clone());
+        }
+        self.contents.push(Content::function_responses(responses));
+        self
+    }
 }
 
 /// Why the model stopped generating.
@@ -278,6 +465,19 @@ impl GenerateContentResponse {
             .first()
             .and_then(|candidate| candidate.finish_reason)
     }
+
+    /// The function calls the model made this turn, in order.
+    ///
+    /// Non-empty when the model wants functions run. Run each function and
+    /// answer with
+    /// [`GenerateContentRequest::with_function_responses`].
+    pub fn function_calls(&self) -> impl Iterator<Item = &FunctionCall> {
+        self.candidates
+            .first()
+            .and_then(|candidate| candidate.content.as_ref())
+            .into_iter()
+            .flat_map(Content::function_calls)
+    }
 }
 
 #[cfg(test)]
@@ -291,6 +491,8 @@ mod tests {
             contents: vec![Content::text(Role::User, "hi")],
             system_instruction: None,
             generation_config: None,
+            tools: None,
+            tool_config: None,
         };
         let json = serde_json::to_value(&request).unwrap();
         assert_eq!(
@@ -308,6 +510,8 @@ mod tests {
             contents: vec![Content::text(Role::User, "hi")],
             system_instruction: Some(Content::system("be brief")),
             generation_config: None,
+            tools: None,
+            tool_config: None,
         };
         let json = serde_json::to_value(&request).unwrap();
         assert_eq!(
@@ -368,5 +572,127 @@ mod tests {
         }"#;
         let response: GenerateContentResponse = serde_json::from_str(json).unwrap();
         assert_eq!(response.text(), "caption");
+    }
+
+    #[test]
+    fn tools_serialize_on_the_wire_format() {
+        let request = GenerateContentRequest {
+            model: "gemini-3.6-flash".to_string(),
+            contents: vec![Content::text(Role::User, "weather in Stockholm?")],
+            system_instruction: None,
+            generation_config: None,
+            tools: Some(vec![Tool {
+                function_declarations: vec![FunctionDeclaration::new(
+                    "get_weather",
+                    "Get the current weather for a city.",
+                    serde_json::json!({
+                        "type": "object",
+                        "properties": {"city": {"type": "string"}},
+                        "required": ["city"]
+                    }),
+                )],
+            }]),
+            tool_config: Some(ToolConfig {
+                function_calling_config: Some(FunctionCallingConfig {
+                    mode: Some(FunctionCallingMode::Any),
+                    allowed_function_names: None,
+                }),
+            }),
+        };
+        let json = serde_json::to_value(&request).unwrap();
+        assert_eq!(
+            json["tools"][0]["functionDeclarations"][0]["name"],
+            "get_weather"
+        );
+        assert_eq!(
+            json["tools"][0]["functionDeclarations"][0]["parameters"]["properties"]["city"]
+                ["type"],
+            "string"
+        );
+        assert_eq!(
+            json["toolConfig"]["functionCallingConfig"]["mode"],
+            "ANY"
+        );
+    }
+
+    #[test]
+    fn function_call_responses_parse_and_expose_calls() {
+        let json = r#"{
+            "candidates": [{
+                "content": {
+                    "role": "model",
+                    "parts": [{
+                        "functionCall": {"name": "get_weather", "args": {"city": "Stockholm"}},
+                        "thoughtSignature": "sig_abc"
+                    }]
+                },
+                "finishReason": "STOP"
+            }]
+        }"#;
+        let response: GenerateContentResponse = serde_json::from_str(json).unwrap();
+        let calls: Vec<_> = response.function_calls().collect();
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].name, "get_weather");
+        assert_eq!(calls[0].args["city"], "Stockholm");
+        assert_eq!(response.text(), "");
+    }
+
+    #[test]
+    fn function_responses_continue_the_conversation() {
+        let response: GenerateContentResponse = serde_json::from_str(
+            r#"{
+                "candidates": [{
+                    "content": {
+                        "role": "model",
+                        "parts": [{
+                            "functionCall": {"name": "get_weather", "args": {"city": "Stockholm"}},
+                            "thoughtSignature": "sig_abc"
+                        }]
+                    }
+                }]
+            }"#,
+        )
+        .unwrap();
+        let request = GenerateContentRequest {
+            model: "gemini-3.6-flash".to_string(),
+            contents: vec![Content::text(Role::User, "weather?")],
+            system_instruction: None,
+            generation_config: None,
+            tools: None,
+            tool_config: None,
+        }
+        .with_function_responses(
+            &response,
+            [FunctionResponse::new(
+                "get_weather",
+                serde_json::json!({"temperature_c": 8, "sky": "cloudy"}),
+            )],
+        );
+
+        assert_eq!(request.contents.len(), 3);
+        let json = serde_json::to_value(&request).unwrap();
+        // The model turn is echoed back verbatim, including the signature.
+        assert_eq!(
+            json["contents"][1]["parts"][0]["thoughtSignature"],
+            "sig_abc"
+        );
+        assert_eq!(
+            json["contents"][2],
+            serde_json::json!({
+                "role": "user",
+                "parts": [{
+                    "functionResponse": {
+                        "name": "get_weather",
+                        "response": {"temperature_c": 8, "sky": "cloudy"}
+                    }
+                }]
+            })
+        );
+    }
+
+    #[test]
+    fn non_object_function_responses_are_wrapped() {
+        let response = FunctionResponse::new("get_time", serde_json::json!("09:41"));
+        assert_eq!(response.response, serde_json::json!({"result": "09:41"}));
     }
 }

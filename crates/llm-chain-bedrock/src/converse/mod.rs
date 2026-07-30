@@ -22,4 +22,6 @@ pub use step::{DEFAULT_MODEL, Model, Step, models};
 pub use types::{
     ContentBlock, ConverseOutput, ConverseRequest, ConverseResponse, InferenceConfig, Message,
     Metrics, ReasoningContent, ReasoningText, Role, StopReason, SystemContentBlock, TokenUsage,
+    Tool, ToolChoice, ToolConfiguration, ToolInputSchema, ToolResultBlock, ToolResultContent,
+    ToolResultStatus, ToolSpec, ToolUseBlock,
 };

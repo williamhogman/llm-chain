@@ -1,7 +1,7 @@
 #[cfg(feature = "serialization")]
 use serde::{Deserialize, Serialize};
 
-use super::types::{ConverseRequest, InferenceConfig};
+use super::types::{ConverseRequest, InferenceConfig, Tool, ToolChoice, ToolConfiguration, ToolSpec};
 
 /// Per-step request options for Bedrock's Converse API.
 ///
@@ -66,6 +66,18 @@ pub struct Options {
         serde(skip_serializing_if = "Option::is_none")
     )]
     additional_model_request_fields: Option<serde_json::Value>,
+    /// Tools the model may call.
+    #[cfg_attr(
+        feature = "serialization",
+        serde(skip_serializing_if = "Option::is_none")
+    )]
+    tools: Option<Vec<ToolSpec>>,
+    /// How the model chooses among the tools.
+    #[cfg_attr(
+        feature = "serialization",
+        serde(skip_serializing_if = "Option::is_none")
+    )]
+    tool_choice: Option<ToolChoice>,
 }
 
 impl Options {
@@ -121,6 +133,40 @@ impl Options {
         self
     }
 
+    /// Declares tools the model may call, sent as the request's `toolConfig`.
+    ///
+    /// When the model decides to call one, the response's
+    /// [`stop_reason`](super::ConverseResponse::stop_reason) is
+    /// [`StopReason::ToolUse`](super::StopReason::ToolUse) and the calls are
+    /// available via [`ConverseResponse::tool_uses`](super::ConverseResponse::tool_uses).
+    /// Answer them with
+    /// [`ConverseRequest::with_tool_results`](super::ConverseRequest::with_tool_results).
+    ///
+    /// ```
+    /// use llm_chain_bedrock::converse::{Options, ToolSpec};
+    ///
+    /// let options = Options::new().with_tools([ToolSpec::new(
+    ///     "get_weather",
+    ///     "Get the current weather in a city",
+    ///     serde_json::json!({
+    ///         "type": "object",
+    ///         "properties": {"city": {"type": "string"}},
+    ///         "required": ["city"]
+    ///     }),
+    /// )]);
+    /// ```
+    pub fn with_tools(mut self, tools: impl IntoIterator<Item = ToolSpec>) -> Self {
+        self.tools = Some(tools.into_iter().collect());
+        self
+    }
+
+    /// Sets how the model chooses among the tools declared with
+    /// [`with_tools`](Self::with_tools). No effect unless tools are set.
+    pub fn with_tool_choice(mut self, tool_choice: ToolChoice) -> Self {
+        self.tool_choice = Some(tool_choice);
+        self
+    }
+
     /// Applies every set option to a request.
     pub(crate) fn apply(&self, request: &mut ConverseRequest) {
         let inference_config = InferenceConfig {
@@ -131,6 +177,14 @@ impl Options {
         };
         request.inference_config = (!inference_config.is_empty()).then_some(inference_config);
         request.additional_model_request_fields = self.additional_model_request_fields.clone();
+        request.tool_config = self.tools.as_ref().map(|tools| ToolConfiguration {
+            tools: tools
+                .iter()
+                .cloned()
+                .map(|tool_spec| Tool { tool_spec })
+                .collect(),
+            tool_choice: self.tool_choice.clone(),
+        });
     }
 }
 
@@ -146,6 +200,7 @@ mod tests {
             system: None,
             inference_config: None,
             additional_model_request_fields: None,
+            tool_config: None,
         }
     }
 
@@ -178,6 +233,32 @@ mod tests {
     }
 
     #[test]
+    fn tools_are_applied_as_tool_config() {
+        let mut request = base_request();
+        Options::new()
+            .with_tools([ToolSpec::new(
+                "get_weather",
+                "Get the weather",
+                serde_json::json!({"type": "object"}),
+            )])
+            .with_tool_choice(ToolChoice::Any {})
+            .apply(&mut request);
+        let tool_config = request.tool_config.expect("tool config set");
+        assert_eq!(tool_config.tools.len(), 1);
+        assert_eq!(tool_config.tools[0].tool_spec.name, "get_weather");
+        assert_eq!(tool_config.tool_choice, Some(ToolChoice::Any {}));
+    }
+
+    #[test]
+    fn tool_choice_alone_does_not_create_tool_config() {
+        let mut request = base_request();
+        Options::new()
+            .with_tool_choice(ToolChoice::Auto {})
+            .apply(&mut request);
+        assert_eq!(request.tool_config, None);
+    }
+
+    #[test]
     fn is_default_detects_empty_options() {
         assert!(Options::new().is_default());
         assert!(!Options::new().with_temperature(0.1).is_default());
@@ -189,7 +270,12 @@ mod tests {
         let options = Options::new()
             .with_temperature(0.5)
             .with_max_tokens(2048)
-            .with_additional_model_request_fields(serde_json::json!({"top_k": 40}));
+            .with_additional_model_request_fields(serde_json::json!({"top_k": 40}))
+            .with_tools([ToolSpec::new(
+                "get_weather",
+                "Get the weather",
+                serde_json::json!({"type": "object"}),
+            )]);
         let yaml = serde_yaml_ng::to_string(&options).unwrap();
         let parsed: Options = serde_yaml_ng::from_str(&yaml).unwrap();
         assert_eq!(parsed, options);

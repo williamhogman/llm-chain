@@ -21,10 +21,10 @@ llm-chain.workspace = true
 reqwest.workspace = true
 secrecy.workspace = true
 serde = { workspace = true, optional = true }
+serde_json.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
-serde_json.workspace = true
 serde_yaml_ng.workspace = true
 tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread"] }
 

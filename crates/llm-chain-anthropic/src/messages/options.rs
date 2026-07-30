@@ -1,7 +1,7 @@
 #[cfg(feature = "serialization")]
 use serde::{Deserialize, Serialize};
 
-use super::types::{Effort, MessagesRequest, Thinking};
+use super::types::{Effort, MessagesRequest, Thinking, ToolChoice, ToolDefinition};
 
 /// The default `max_tokens` for a step that does not override it.
 ///
@@ -76,6 +76,18 @@ pub struct Options {
         serde(skip_serializing_if = "Option::is_none")
     )]
     effort: Option<Effort>,
+    /// Tools the model may call.
+    #[cfg_attr(
+        feature = "serialization",
+        serde(skip_serializing_if = "Option::is_none")
+    )]
+    tools: Option<Vec<ToolDefinition>>,
+    /// How the model chooses among the tools.
+    #[cfg_attr(
+        feature = "serialization",
+        serde(skip_serializing_if = "Option::is_none")
+    )]
+    tool_choice: Option<ToolChoice>,
 }
 
 impl Options {
@@ -144,6 +156,29 @@ impl Options {
         self
     }
 
+    /// Gives the model tools to call.
+    ///
+    /// When the model calls one, the response's
+    /// [`stop_reason`](super::MessagesResponse::stop_reason) is
+    /// [`StopReason::ToolUse`](super::StopReason::ToolUse); run the tools from
+    /// [`MessagesResponse::tool_uses`](super::MessagesResponse::tool_uses) and
+    /// continue with
+    /// [`MessagesRequest::with_tool_results`](super::MessagesRequest::with_tool_results).
+    ///
+    /// Use [`ToolCollection::tool_specs`](https://docs.rs/llm-chain-tools) to
+    /// bridge an existing `llm-chain-tools` collection into definitions.
+    pub fn with_tools<I: IntoIterator<Item = ToolDefinition>>(mut self, tools: I) -> Self {
+        self.tools = Some(tools.into_iter().collect());
+        self
+    }
+
+    /// Controls how the model chooses among the tools (default:
+    /// [`ToolChoice::Auto`] when tools are present).
+    pub fn with_tool_choice(mut self, tool_choice: ToolChoice) -> Self {
+        self.tool_choice = Some(tool_choice);
+        self
+    }
+
     /// Applies every set option to a request.
     pub(crate) fn apply(&self, request: &mut MessagesRequest) {
         if let Some(max_tokens) = self.max_tokens {
@@ -157,6 +192,8 @@ impl Options {
             .thinking_budget
             .map(|budget_tokens| Thinking::Enabled { budget_tokens });
         request.effort = self.effort;
+        request.tools = self.tools.clone();
+        request.tool_choice = self.tool_choice.clone();
     }
 }
 
@@ -170,16 +207,15 @@ mod tests {
             model: "claude-sonnet-5".to_string(),
             max_tokens: DEFAULT_MAX_TOKENS,
             system: None,
-            messages: vec![Message {
-                role: Role::User,
-                content: "hi".to_string(),
-            }],
+            messages: vec![Message::text(Role::User, "hi")],
             temperature: None,
             top_p: None,
             top_k: None,
             stop_sequences: None,
             thinking: None,
             effort: None,
+            tools: None,
+            tool_choice: None,
         }
     }
 
@@ -218,6 +254,22 @@ mod tests {
     fn is_default_detects_empty_options() {
         assert!(Options::new().is_default());
         assert!(!Options::new().with_temperature(0.1).is_default());
+    }
+
+    #[test]
+    fn tools_are_applied_to_the_request() {
+        let mut request = base_request();
+        let tool = ToolDefinition::new(
+            "get_weather",
+            "Get the current weather for a city.",
+            serde_json::json!({"type": "object", "properties": {"city": {"type": "string"}}}),
+        );
+        Options::new()
+            .with_tools([tool.clone()])
+            .with_tool_choice(ToolChoice::Any)
+            .apply(&mut request);
+        assert_eq!(request.tools, Some(vec![tool]));
+        assert_eq!(request.tool_choice, Some(ToolChoice::Any));
     }
 
     #[cfg(feature = "serialization")]
