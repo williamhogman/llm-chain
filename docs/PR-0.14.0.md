@@ -30,8 +30,10 @@ crates.io resolution moves forward), not as an incremental diff on top of
 
 Called out explicitly so nobody discovers it post-merge: SSE streaming, the
 `prompt!`/`executor!` macros, the unified `Options` map, conversation
-chains, and the `local`, `mock`, `macros`, `sagemaker-endpoint`,
-`gemma(-sys)`, `qdrant`, `milvus` and `hnsw` crates.
+chains, and the `local`, `macros`, `sagemaker-endpoint`,
+`gemma(-sys)`, `qdrant`, `milvus` and `hnsw` crates. (`llm-chain-mock` *is*
+carried over, rebuilt on the 0.14 architecture.)
+
 `docs/MIGRATION-0.14.md` maps each to its 0.14 equivalent (or its absence).
 Streaming is the top follow-up candidate; the vector-store crates are best
 revisited against 2026-era store APIs rather than ported.
@@ -105,15 +107,30 @@ llama.cpp FFI with a git submodule) are deprecated or unmaintained.
   `cuda`/`metal`/`vulkan` features. The vendored `sys` crate and the
   `llama.cpp` submodule are removed.
 
+**Mock (`llm-chain-mock`)**
+- Rebuilt on the 0.14 architecture: Echo / Scripted / Failing behaviours with
+  call recording, for unit-testing chains without network access.
+
 **Tools (`llm-chain-tools`)**
 - Fallible `Tool` trait with `ToolError`; robust fenced-code-block
   extraction; `gen_invoke_function!` macro.
+
 
 **Security**
 - All credentials held as `secrecy::SecretString` — redacted `Debug`,
   zeroized on drop.
 - Uniform `.status()` / `.is_rate_limit()` on provider errors for
   retry/backoff.
+
+**Repository & workspace**
+- Crates laid out under `crates/*`, matching upstream's layout; `Cargo.lock`
+  committed; `SECURITY.md` and a modern cargo-deny v2 `deny.toml` added.
+
+**Website**
+- The Docusaurus site (`website/`, docs.llm-chain.xyz) ported and upgraded
+  2.4 → 3.9 (React 19, MDX v3): every docs page rewritten for the 0.14 API,
+  a new Providers page, the historical blog preserved plus a 0.14 release
+  post, and GitHub Pages deploy / PR-check workflows.
 
 **CI/CD & docs**
 - fmt + clippy `-D warnings` + Ubuntu/macOS test matrix + MSRV (1.85) job +
@@ -123,13 +140,16 @@ llama.cpp FFI with a git submodule) are deprecated or unmaintained.
   points), release checklist (`docs/RELEASING.md`), and runnable examples
   for every provider.
 
+
 ### Numbers
 
-- Against the `51cce6b` fork point: 133 files changed, ~10,400 insertions,
-  ~2,100 deletions.
-- 22 test suites, 209 unit/integration/doc tests — including mock-API wire
+- Against the `51cce6b` fork point: 210 files changed, ~34,400 insertions,
+  ~2,500 deletions (including the ported website and the committed
+  `Cargo.lock` / `package-lock.json` lockfiles).
+- 23 test suites, 219 unit/integration/doc tests — including mock-API wire
   format suites for Anthropic/Gemini/Bedrock/Ollama (no API keys needed) and
   a real GGUF end-to-end inference test.
+
 
 ### Versioning
 
@@ -173,7 +193,7 @@ Because the branch does not descend from current `main`, pick one:
 
 Suggested logical commit series if rebasing/re-authoring instead of
 squashing:
-1. Workspace: edition 2024, resolver 3, MSRV 1.85, shared deps/lints
+1. Workspace: edition 2024, resolver 3, MSRV 1.85, shared deps/lints, `crates/*` layout
 2. Core: native async traits, typed errors, fallible templates, model-id macros
 3. OpenAI: async-openai 0.41, 2026 models, options, Azure
 4. Anthropic: new crate
@@ -181,8 +201,11 @@ squashing:
 6. Ollama: new crate
 7. Bedrock: new crate
 8. LLaMA: rewrite on llama-cpp-2
-9. Tools: fallible trait, extraction hardening
-10. CI/CD, docs, changelog, release tooling
+9. Mock: rebuilt on the 0.14 architecture
+10. Tools: fallible trait, extraction hardening
+11. Website: Docusaurus 3 port, docs rewritten for 0.14
+12. CI/CD, docs, changelog, release tooling
+
 
 ### Notes for reviewers
 
@@ -191,6 +214,6 @@ squashing:
   docs-preview scaffolding. They are inert for library consumers and are not
   included in any published crate package. Happy to drop them from the PR if
   preferred.
-- The 0.13-era `crates/*` layout is not preserved; crates live at the
-  workspace root as in 0.1.x. Happy to move them under `crates/` if that is
-  the preferred layout going forward.
+- The workspace uses upstream's `crates/*` layout, and the 0.13-era
+  Docusaurus website is carried forward under `website/` (upgraded to
+  Docusaurus 3, docs rewritten for 0.14, domain and blog history preserved).

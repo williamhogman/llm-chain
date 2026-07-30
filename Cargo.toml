@@ -1,15 +1,6 @@
 [workspace]
 resolver = "3"
-members = [
-    "llm-chain",
-    "llm-chain-anthropic",
-    "llm-chain-bedrock",
-    "llm-chain-gemini",
-    "llm-chain-ollama",
-    "llm-chain-openai",
-    "llm-chain-tools",
-    "llm-chain-llama",
-]
+members = ["crates/*"]
 
 [workspace.package]
 version = "0.14.0"
@@ -23,7 +14,7 @@ authors = [
 repository = "https://github.com/sobelio/llm-chain/"
 
 [workspace.dependencies]
-llm-chain = { path = "llm-chain", version = "0.14.0" }
+llm-chain = { path = "crates/llm-chain", version = "0.14.0" }
 async-openai = { version = "0.41", features = ["chat-completion"] }
 futures = "0.3.31"
 llama-cpp-2 = "0.1.153"
