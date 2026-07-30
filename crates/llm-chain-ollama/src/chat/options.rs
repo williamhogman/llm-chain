@@ -301,6 +301,18 @@ mod tests {
     }
 
     #[test]
+    fn tools_are_applied_to_the_request() {
+        let mut request = base_request();
+        let tool = Tool::function(
+            "get_weather",
+            "Get the weather",
+            serde_json::json!({"type": "object"}),
+        );
+        Options::new().with_tools([tool.clone()]).apply(&mut request);
+        assert_eq!(request.tools, Some(vec![tool]));
+    }
+
+    #[test]
     fn is_default_detects_empty_options() {
         assert!(Options::new().is_default());
         assert!(!Options::new().with_temperature(0.1).is_default());
@@ -312,7 +324,12 @@ mod tests {
         let options = Options::new()
             .with_temperature(0.5)
             .with_num_predict(2048)
-            .with_think(Think::Enabled);
+            .with_think(Think::Enabled)
+            .with_tools([Tool::function(
+                "get_weather",
+                "Get the weather",
+                serde_json::json!({"type": "object"}),
+            )]);
         let yaml = serde_yaml_ng::to_string(&options).unwrap();
         let parsed: Options = serde_yaml_ng::from_str(&yaml).unwrap();
         assert_eq!(parsed, options);
