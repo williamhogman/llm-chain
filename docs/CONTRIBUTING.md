@@ -23,6 +23,11 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 ```
 
+If your change is user-visible, add a line to the `[Unreleased]`/upcoming
+section of [`CHANGELOG.md`](/CHANGELOG.md). Maintainers cut releases
+following [`docs/RELEASING.md`](/docs/RELEASING.md).
+
+
 
 ## Before You Contribute
 
