@@ -2,7 +2,7 @@
 id: llama-tutorial
 title: "Tutorial: local inference with the LLaMA driver"
 sidebar_label: LLaMA Tutorial
-sidebar_position: 4
+sidebar_position: 5
 ---
 
 # Tutorial: Getting started with the LLaMA driver

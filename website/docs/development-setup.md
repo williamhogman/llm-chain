@@ -2,7 +2,7 @@
 id: dev-setup
 title: Development Setup
 sidebar_label: Development Setup
-sidebar_position: 5
+sidebar_position: 6
 ---
 
 # Contributing to `llm-chain`
