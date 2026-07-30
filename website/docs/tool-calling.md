@@ -158,7 +158,7 @@ let prompt = create_tool_prompt_segment(&tc, "Please perform the following task:
 // let result = tc.process_chat_input(&model_reply)?;
 ```
 
-`process_chat_input` accepts bare YAML or fenced ` ```yaml ` blocks, invokes the named tool and returns its YAML output for the next turn. See `simple_agent.rs` in `crates/llm-chain-tools/examples` for the full loop.
+`process_chat_input` accepts bare YAML or fenced ``` ```yaml ``` blocks, invokes the named tool and returns its YAML output for the next turn. See `simple_agent.rs` in `crates/llm-chain-tools/examples` for the full loop.
 
 ## Choosing between them
 
