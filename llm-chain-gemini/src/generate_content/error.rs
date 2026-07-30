@@ -38,3 +38,61 @@ pub enum GeminiError {
         reason: String,
     },
 }
+
+impl GeminiError {
+    /// The HTTP status code associated with this error, when there is one.
+    pub fn status(&self) -> Option<u16> {
+        match self {
+            Self::Api { http_status, .. } => Some(*http_status),
+            Self::Http(error) => error.status().map(|status| status.as_u16()),
+            Self::MissingApiKey | Self::NoCandidates { .. } => None,
+        }
+    }
+
+    /// Returns `true` when the request was rejected for rate limiting or
+    /// quota exhaustion — worth retrying with backoff.
+    pub fn is_rate_limit(&self) -> bool {
+        match self {
+            Self::Api {
+                http_status,
+                status,
+                ..
+            } => *http_status == 429 || status == "RESOURCE_EXHAUSTED",
+            _ => self.status() == Some(429),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn api_error(http_status: u16, status: &str) -> GeminiError {
+        GeminiError::Api {
+            http_status,
+            status: status.to_string(),
+            message: "m".to_string(),
+        }
+    }
+
+    #[test]
+    fn status_is_exposed_for_api_errors() {
+        assert_eq!(api_error(400, "INVALID_ARGUMENT").status(), Some(400));
+        assert_eq!(GeminiError::MissingApiKey.status(), None);
+        assert_eq!(
+            GeminiError::NoCandidates {
+                reason: "SAFETY".to_string()
+            }
+            .status(),
+            None
+        );
+    }
+
+    #[test]
+    fn quota_exhaustion_is_retryable() {
+        assert!(api_error(429, "RESOURCE_EXHAUSTED").is_rate_limit());
+        assert!(api_error(429, "UNKNOWN").is_rate_limit());
+        assert!(!api_error(400, "INVALID_ARGUMENT").is_rate_limit());
+        assert!(!GeminiError::MissingApiKey.is_rate_limit());
+    }
+}

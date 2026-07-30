@@ -1,4 +1,5 @@
 use llm_chain::{Parameters, traits};
+use secrecy::{ExposeSecret, SecretString};
 
 use super::error::AnthropicError;
 use super::types::{ContentBlock, MessagesRequest, MessagesResponse, Usage};
@@ -28,7 +29,9 @@ pub const ANTHROPIC_VERSION: &str = "2023-06-01";
 #[derive(Clone)]
 pub struct Executor {
     client: reqwest::Client,
-    api_key: String,
+    /// Kept in a [`SecretString`] so the key is redacted from any debug output
+    /// and zeroized on drop.
+    api_key: SecretString,
     base_url: String,
 }
 
@@ -50,7 +53,7 @@ impl Executor {
     pub fn with_api_key<S: Into<String>>(api_key: S) -> Self {
         Self {
             client: reqwest::Client::new(),
-            api_key: api_key.into(),
+            api_key: SecretString::from(api_key.into()),
             base_url: DEFAULT_BASE_URL.to_string(),
         }
     }
@@ -65,7 +68,7 @@ impl Executor {
         let response = self
             .client
             .post(format!("{}/v1/messages", self.base_url))
-            .header("x-api-key", &self.api_key)
+            .header("x-api-key", self.api_key.expose_secret())
             .header("anthropic-version", ANTHROPIC_VERSION)
             .json(request)
             .send()
@@ -80,7 +83,7 @@ impl Executor {
     }
 }
 
-// Never derive Debug: it would print the API key.
+// Manual Debug: keeps the output stable and the API key visibly redacted.
 impl std::fmt::Debug for Executor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Executor")

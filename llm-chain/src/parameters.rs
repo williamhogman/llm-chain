@@ -115,8 +115,47 @@ impl From<Vec<(&str, &str)>> for Parameters {
     }
 }
 
-impl FromIterator<(String, String)> for Parameters {
-    fn from_iter<T: IntoIterator<Item = (String, String)>>(iter: T) -> Self {
-        Parameters(iter.into_iter().collect())
+/// Builds parameters from any iterator of key-value pairs.
+///
+/// ```
+/// use llm_chain::Parameters;
+/// let p: Parameters = [("name", "John")].into_iter().collect();
+/// assert_eq!(p.get("name"), Some("John"));
+/// ```
+impl<K: Into<String>, V: Into<String>> FromIterator<(K, V)> for Parameters {
+    fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
+        Parameters(
+            iter.into_iter()
+                .map(|(k, v)| (k.into(), v.into()))
+                .collect(),
+        )
+    }
+}
+
+/// Adds key-value pairs from an iterator, overwriting existing keys.
+///
+/// ```
+/// use llm_chain::Parameters;
+/// let mut p = Parameters::new_with_text("Hello");
+/// p.extend([("name", "John"), ("age", "30")]);
+/// assert_eq!(p.len(), 3);
+/// ```
+impl<K: Into<String>, V: Into<String>> Extend<(K, V)> for Parameters {
+    fn extend<T: IntoIterator<Item = (K, V)>>(&mut self, iter: T) {
+        self.0
+            .extend(iter.into_iter().map(|(k, v)| (k.into(), v.into())));
+    }
+}
+
+/// Builds parameters directly from an array of pairs.
+///
+/// ```
+/// use llm_chain::Parameters;
+/// let p = Parameters::from([("name", "John"), ("age", "30")]);
+/// assert_eq!(p.get("age"), Some("30"));
+/// ```
+impl<K: Into<String>, V: Into<String>, const N: usize> From<[(K, V); N]> for Parameters {
+    fn from(pairs: [(K, V); N]) -> Self {
+        pairs.into_iter().collect()
     }
 }

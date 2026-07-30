@@ -21,6 +21,7 @@ serialization = ["llm-chain/serialization"]
 llm-chain.workspace = true
 percent-encoding.workspace = true
 reqwest.workspace = true
+secrecy.workspace = true
 serde = { workspace = true }
 serde_json.workspace = true
 thiserror.workspace = true

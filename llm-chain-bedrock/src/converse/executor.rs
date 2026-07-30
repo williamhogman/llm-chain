@@ -1,5 +1,6 @@
 use llm_chain::{Parameters, traits};
 use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, utf8_percent_encode};
+use secrecy::{ExposeSecret, SecretString};
 
 use super::error::BedrockError;
 use super::types::{ContentBlock, ConverseRequest, ConverseResponse, Message, Metrics, Role};
@@ -45,7 +46,9 @@ const MODEL_ID_ENCODE_SET: &AsciiSet = &NON_ALPHANUMERIC
 #[derive(Clone)]
 pub struct Executor {
     client: reqwest::Client,
-    bearer_token: String,
+    /// Kept in a [`SecretString`] so the token is redacted from any debug
+    /// output and zeroized on drop.
+    bearer_token: SecretString,
     base_url: String,
 }
 
@@ -70,7 +73,7 @@ impl Executor {
     pub fn with_bearer_token<S: Into<String>>(bearer_token: S) -> Self {
         Self {
             client: reqwest::Client::new(),
-            bearer_token: bearer_token.into(),
+            bearer_token: SecretString::from(bearer_token.into()),
             base_url: endpoint_for_region(&region_from_env()),
         }
     }
@@ -95,7 +98,7 @@ impl Executor {
                 self.base_url,
                 utf8_percent_encode(&request.model_id, MODEL_ID_ENCODE_SET)
             ))
-            .bearer_auth(&self.bearer_token)
+            .bearer_auth(self.bearer_token.expose_secret())
             .json(request)
             .send()
             .await?;
@@ -118,7 +121,7 @@ impl Executor {
     }
 }
 
-// Never derive Debug: it would print the API key.
+// Manual Debug: keeps the output stable and the token visibly redacted.
 impl std::fmt::Debug for Executor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Executor")

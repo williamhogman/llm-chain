@@ -1,4 +1,5 @@
 use llm_chain::{Parameters, traits};
+use secrecy::{ExposeSecret, SecretString};
 
 use super::error::OllamaError;
 use super::types::{ChatRequest, ChatResponse};
@@ -32,7 +33,9 @@ pub const CLOUD_BASE_URL: &str = "https://ollama.com";
 pub struct Executor {
     client: reqwest::Client,
     base_url: String,
-    api_key: Option<String>,
+    /// Kept in a [`SecretString`] so the key is redacted from any debug output
+    /// and zeroized on drop.
+    api_key: Option<SecretString>,
 }
 
 impl Default for Executor {
@@ -76,7 +79,7 @@ impl Executor {
 
     /// Sets a bearer token, required by Ollama's cloud and by proxied servers.
     pub fn with_api_key<S: Into<String>>(mut self, api_key: S) -> Self {
-        self.api_key = Some(api_key.into());
+        self.api_key = Some(SecretString::from(api_key.into()));
         self
     }
 
@@ -86,7 +89,7 @@ impl Executor {
             .post(format!("{}/api/chat", self.base_url))
             .json(request);
         if let Some(api_key) = &self.api_key {
-            http_request = http_request.bearer_auth(api_key);
+            http_request = http_request.bearer_auth(api_key.expose_secret());
         }
         let response = http_request.send().await.map_err(|source| {
             if source.is_connect() {
@@ -108,7 +111,7 @@ impl Executor {
     }
 }
 
-// Never derive Debug: it would print the API key.
+// Manual Debug: keeps the output stable and the API key visibly redacted.
 impl std::fmt::Debug for Executor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Executor")
@@ -216,7 +219,8 @@ mod tests {
     fn cloud_points_at_ollama_com_with_a_key() {
         let exec = Executor::cloud("sk-key");
         assert_eq!(exec.base_url, CLOUD_BASE_URL);
-        assert_eq!(exec.api_key.as_deref(), Some("sk-key"));
+        let api_key = exec.api_key.as_ref().expect("api key set");
+        assert_eq!(api_key.expose_secret(), "sk-key");
     }
 
     #[test]

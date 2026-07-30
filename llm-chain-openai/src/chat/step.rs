@@ -1,6 +1,3 @@
-use std::fmt;
-use std::str::FromStr;
-
 use async_openai::types::chat::{CreateChatCompletionRequest, CreateChatCompletionRequestArgs};
 #[cfg(feature = "serialization")]
 use llm_chain::serialization::StorableEntity;
@@ -87,82 +84,33 @@ pub enum Model {
     Other(String),
 }
 
-impl fmt::Display for Model {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = match self {
-            Self::Gpt56 => "gpt-5.6",
-            Self::Gpt56Sol => "gpt-5.6-sol",
-            Self::Gpt56Terra => "gpt-5.6-terra",
-            Self::Gpt56Luna => "gpt-5.6-luna",
-            Self::Gpt54 => "gpt-5.4",
-            Self::Gpt54Mini => "gpt-5.4-mini",
-            Self::Gpt54Nano => "gpt-5.4-nano",
-            Self::Gpt52 => "gpt-5.2",
-            Self::Gpt52Pro => "gpt-5.2-pro",
-            Self::Gpt51 => "gpt-5.1",
-            Self::Gpt51Mini => "gpt-5.1-mini",
-            Self::Gpt51Codex => "gpt-5.1-codex",
-            Self::Gpt5 => "gpt-5",
-            Self::Gpt5Mini => "gpt-5-mini",
-            Self::Gpt5Nano => "gpt-5-nano",
-            Self::Gpt41 => "gpt-4.1",
-            Self::Gpt41Mini => "gpt-4.1-mini",
-            Self::Gpt41Nano => "gpt-4.1-nano",
-            Self::Gpt4o => "gpt-4o",
-            Self::Gpt4oMini => "gpt-4o-mini",
-            Self::O3 => "o3",
-            Self::O4Mini => "o4-mini",
-            Self::Other(model) => model,
-        };
-        f.write_str(s)
+// One table drives Display, FromStr, KNOWN_IDS and the id-string serde impls.
+llm_chain::impl_model_id! {
+    Model {
+        Gpt56 => "gpt-5.6",
+        Gpt56Sol => "gpt-5.6-sol",
+        Gpt56Terra => "gpt-5.6-terra",
+        Gpt56Luna => "gpt-5.6-luna",
+        Gpt54 => "gpt-5.4",
+        Gpt54Mini => "gpt-5.4-mini",
+        Gpt54Nano => "gpt-5.4-nano",
+        Gpt52 => "gpt-5.2",
+        Gpt52Pro => "gpt-5.2-pro",
+        Gpt51 => "gpt-5.1",
+        Gpt51Mini => "gpt-5.1-mini",
+        Gpt51Codex => "gpt-5.1-codex",
+        Gpt5 => "gpt-5",
+        Gpt5Mini => "gpt-5-mini",
+        Gpt5Nano => "gpt-5-nano",
+        Gpt41 => "gpt-4.1",
+        Gpt41Mini => "gpt-4.1-mini",
+        Gpt41Nano => "gpt-4.1-nano",
+        Gpt4o => "gpt-4o",
+        Gpt4oMini => "gpt-4o-mini",
+        O3 => "o3",
+        O4Mini => "o4-mini",
     }
-}
-
-impl FromStr for Model {
-    type Err = std::convert::Infallible;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(match s {
-            "gpt-5.6" => Self::Gpt56,
-            "gpt-5.6-sol" => Self::Gpt56Sol,
-            "gpt-5.6-terra" => Self::Gpt56Terra,
-            "gpt-5.6-luna" => Self::Gpt56Luna,
-            "gpt-5.4" => Self::Gpt54,
-            "gpt-5.4-mini" => Self::Gpt54Mini,
-            "gpt-5.4-nano" => Self::Gpt54Nano,
-            "gpt-5.2" => Self::Gpt52,
-            "gpt-5.2-pro" => Self::Gpt52Pro,
-            "gpt-5.1" => Self::Gpt51,
-            "gpt-5.1-mini" => Self::Gpt51Mini,
-            "gpt-5.1-codex" => Self::Gpt51Codex,
-            "gpt-5" => Self::Gpt5,
-            "gpt-5-mini" => Self::Gpt5Mini,
-            "gpt-5-nano" => Self::Gpt5Nano,
-            "gpt-4.1" => Self::Gpt41,
-            "gpt-4.1-mini" => Self::Gpt41Mini,
-            "gpt-4.1-nano" => Self::Gpt41Nano,
-            "gpt-4o" => Self::Gpt4o,
-            "gpt-4o-mini" => Self::Gpt4oMini,
-            "o3" => Self::O3,
-            "o4-mini" => Self::O4Mini,
-            other => Self::Other(other.to_string()),
-        })
-    }
-}
-
-// Models serialize as their OpenAI model id, e.g. `gpt-5.6-terra`.
-#[cfg(feature = "serialization")]
-impl Serialize for Model {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&self.to_string())
-    }
-}
-
-#[cfg(feature = "serialization")]
-impl<'de> Deserialize<'de> for Model {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let s = String::deserialize(deserializer)?;
-        Ok(s.parse().expect("infallible"))
-    }
+    other: Other
 }
 
 /// The `Step` struct represents an individual step within a chain for OpenAI chat models. It is responsible for configuring the input parameters for the model and providing the prompt.
@@ -245,35 +193,14 @@ mod tests {
 
     #[test]
     fn model_ids_round_trip() {
-        let models = [
-            Model::Gpt56,
-            Model::Gpt56Sol,
-            Model::Gpt56Terra,
-            Model::Gpt56Luna,
-            Model::Gpt54,
-            Model::Gpt54Mini,
-            Model::Gpt54Nano,
-            Model::Gpt52,
-            Model::Gpt52Pro,
-            Model::Gpt51,
-            Model::Gpt51Mini,
-            Model::Gpt51Codex,
-            Model::Gpt5,
-            Model::Gpt5Mini,
-            Model::Gpt5Nano,
-            Model::Gpt41,
-            Model::Gpt41Mini,
-            Model::Gpt41Nano,
-            Model::Gpt4o,
-            Model::Gpt4oMini,
-            Model::O3,
-            Model::O4Mini,
-            Model::Other("my-fine-tune".to_string()),
-        ];
-        for model in models {
-            let parsed: Model = model.to_string().parse().unwrap();
-            assert_eq!(parsed, model);
+        for id in Model::KNOWN_IDS {
+            let model: Model = id.parse().unwrap();
+            assert!(!matches!(model, Model::Other(_)), "{id} parsed as Other");
+            assert_eq!(model.to_string(), *id);
         }
+        let fine_tune: Model = "my-fine-tune".parse().unwrap();
+        assert_eq!(fine_tune, Model::Other("my-fine-tune".to_string()));
+        assert_eq!(fine_tune.to_string(), "my-fine-tune");
     }
 
     #[test]
