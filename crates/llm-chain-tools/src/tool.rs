@@ -14,6 +14,10 @@ pub enum ToolError {
     /// The input or output could not be (de)serialized. The input must be valid YAML matching the tool's input format.
     #[error("invalid YAML: {0}")]
     Yaml(#[from] serde_yaml_ng::Error),
+    /// JSON input or output could not be converted when bridging to native
+    /// tool calling (see [`ToolCollection::invoke_json`](crate::ToolCollection::invoke_json)).
+    #[error("invalid JSON: {0}")]
+    Json(#[from] serde_json::Error),
     /// An I/O error occurred while executing the tool.
     #[error("io error: {0}")]
     Io(#[from] std::io::Error),

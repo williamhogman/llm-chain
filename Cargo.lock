@@ -1023,6 +1023,7 @@ dependencies = [
  "llm-chain",
  "llm-chain-openai",
  "serde",
+ "serde_json",
  "serde_yaml_ng",
  "thiserror",
  "tokio",
