@@ -308,7 +308,9 @@ mod tests {
             "Get the weather",
             serde_json::json!({"type": "object"}),
         );
-        Options::new().with_tools([tool.clone()]).apply(&mut request);
+        Options::new()
+            .with_tools([tool.clone()])
+            .apply(&mut request);
         assert_eq!(request.tools, Some(vec![tool]));
     }
 

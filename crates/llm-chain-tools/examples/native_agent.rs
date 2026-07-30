@@ -69,7 +69,10 @@ async fn main() {
         let message = &response.choices[0].message;
         request.messages.push(assistant_tool_calls_message(message));
         for call in calls {
-            println!("Tool call: {}({})", call.function.name, call.function.arguments);
+            println!(
+                "Tool call: {}({})",
+                call.function.name, call.function.arguments
+            );
             let result = serde_json::from_str(&call.function.arguments)
                 .map_err(Into::into)
                 .and_then(|input| tool_collection.invoke_json(&call.function.name, &input));

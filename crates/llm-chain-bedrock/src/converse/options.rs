@@ -1,7 +1,9 @@
 #[cfg(feature = "serialization")]
 use serde::{Deserialize, Serialize};
 
-use super::types::{ConverseRequest, InferenceConfig, Tool, ToolChoice, ToolConfiguration, ToolSpec};
+use super::types::{
+    ConverseRequest, InferenceConfig, Tool, ToolChoice, ToolConfiguration, ToolSpec,
+};
 
 /// Per-step request options for Bedrock's Converse API.
 ///

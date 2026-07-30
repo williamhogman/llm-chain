@@ -594,7 +594,10 @@ mod tests {
     #[test]
     fn message_content_round_trips_text_and_blocks() {
         let text: MessageContent = "hi".into();
-        assert_eq!(serde_json::to_value(&text).unwrap(), serde_json::json!("hi"));
+        assert_eq!(
+            serde_json::to_value(&text).unwrap(),
+            serde_json::json!("hi")
+        );
         assert_eq!(text.as_text(), Some("hi"));
         assert!(text.blocks().is_empty());
 

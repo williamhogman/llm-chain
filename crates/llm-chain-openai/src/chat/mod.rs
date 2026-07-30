@@ -31,6 +31,4 @@ pub use executor::{AzureExecutor, Executor};
 pub use options::Options;
 pub use prompt::{ChatPromptTemplate, MessagePromptTemplate, Role};
 pub use step::{Model, Step};
-pub use tools::{
-    assistant_tool_calls_message, function_calls, function_tool, tool_result_message,
-};
+pub use tools::{assistant_tool_calls_message, function_calls, function_tool, tool_result_message};

@@ -25,11 +25,11 @@
 //! ```
 
 use async_openai::types::chat::{
-    ChatCompletionMessageToolCall, ChatCompletionMessageToolCalls, ChatCompletionRequestAssistantMessage,
-    ChatCompletionRequestAssistantMessageContent, ChatCompletionRequestMessage,
-    ChatCompletionRequestToolMessage, ChatCompletionRequestToolMessageContent,
-    ChatCompletionResponseMessage, ChatCompletionTool, ChatCompletionTools, CreateChatCompletionResponse,
-    FunctionObject,
+    ChatCompletionMessageToolCall, ChatCompletionMessageToolCalls,
+    ChatCompletionRequestAssistantMessage, ChatCompletionRequestAssistantMessageContent,
+    ChatCompletionRequestMessage, ChatCompletionRequestToolMessage,
+    ChatCompletionRequestToolMessageContent, ChatCompletionResponseMessage, ChatCompletionTool,
+    ChatCompletionTools, CreateChatCompletionResponse, FunctionObject,
 };
 
 /// Builds a function tool from a name, a description and a JSON Schema for

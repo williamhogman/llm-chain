@@ -135,10 +135,7 @@ impl Content {
     pub fn function_responses<I: IntoIterator<Item = FunctionResponse>>(responses: I) -> Self {
         Self {
             role: Some(Role::User),
-            parts: responses
-                .into_iter()
-                .map(Part::function_response)
-                .collect(),
+            parts: responses.into_iter().map(Part::function_response).collect(),
         }
     }
 
@@ -605,14 +602,10 @@ mod tests {
             "get_weather"
         );
         assert_eq!(
-            json["tools"][0]["functionDeclarations"][0]["parameters"]["properties"]["city"]
-                ["type"],
+            json["tools"][0]["functionDeclarations"][0]["parameters"]["properties"]["city"]["type"],
             "string"
         );
-        assert_eq!(
-            json["toolConfig"]["functionCallingConfig"]["mode"],
-            "ANY"
-        );
+        assert_eq!(json["toolConfig"]["functionCallingConfig"]["mode"], "ANY");
     }
 
     #[test]
