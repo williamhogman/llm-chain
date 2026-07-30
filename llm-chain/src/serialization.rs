@@ -28,14 +28,13 @@
 //!
 //! let data = MyData { value: 42 };
 //!
-//! // Convert the data into an envelope
-//! let envelope = data.clone().write_file_sync("mydata.yaml").unwrap();
-//! // Serialize the envelope to a YAML file
-//! let path = "mydata.yaml";
-//! // Deserialize the envelope from a YAML file
+//! // Wrap the data in an envelope and write it to a YAML file...
+//! let path = std::env::temp_dir().join("mydata.yaml");
+//! let path = path.to_str().unwrap();
+//! let envelope = data.clone().write_file_sync(path).unwrap();
+//! // ...and read it back.
 //! let read_data = MyData::read_file_sync(path).unwrap();
 //! assert_eq!(data.value, read_data.value);
-//!
 //! ```
 //! ## Features
 //!

@@ -1,4 +1,5 @@
 use llm_chain::{Parameters, traits};
+use secrecy::{ExposeSecret, SecretString};
 
 use super::error::GeminiError;
 use super::types::{Content, GenerateContentRequest, GenerateContentResponse, Role, UsageMetadata};
@@ -16,13 +17,14 @@ pub const VERTEX_BASE_URL: &str = "https://aiplatform.googleapis.com";
 /// The API version this crate speaks on Vertex AI.
 pub const VERTEX_API_VERSION: &str = "v1";
 
-/// How requests authenticate. Never derives Debug: it holds credentials.
+/// How requests authenticate. Credentials live in [`SecretString`]s, so they
+/// are redacted from any debug output and zeroized on drop.
 #[derive(Clone)]
 enum Auth {
     /// `x-goog-api-key` header: consumer Gemini API keys and Vertex express keys.
-    ApiKey(String),
+    ApiKey(SecretString),
     /// `Authorization: Bearer` header: Vertex OAuth2 access tokens.
-    Bearer(String),
+    Bearer(SecretString),
 }
 
 /// Which URL layout the endpoint uses. The wire format is identical on all of
@@ -89,7 +91,7 @@ impl Executor {
     pub fn with_api_key<S: Into<String>>(api_key: S) -> Self {
         Self {
             client: reqwest::Client::new(),
-            auth: Auth::ApiKey(api_key.into()),
+            auth: Auth::ApiKey(SecretString::from(api_key.into())),
             base_url: DEFAULT_BASE_URL.to_string(),
             route: Route::GenerativeLanguage,
         }
@@ -119,7 +121,7 @@ impl Executor {
         };
         Self {
             client: reqwest::Client::new(),
-            auth: Auth::Bearer(access_token.into()),
+            auth: Auth::Bearer(SecretString::from(access_token.into())),
             base_url,
             route: Route::Vertex {
                 project: project.into(),
@@ -133,7 +135,7 @@ impl Executor {
     pub fn vertex_express<S: Into<String>>(api_key: S) -> Self {
         Self {
             client: reqwest::Client::new(),
-            auth: Auth::ApiKey(api_key.into()),
+            auth: Auth::ApiKey(SecretString::from(api_key.into())),
             base_url: VERTEX_BASE_URL.to_string(),
             route: Route::VertexExpress,
         }
@@ -169,8 +171,8 @@ impl Executor {
     ) -> Result<GenerateContentResponse, GeminiError> {
         let mut http_request = self.client.post(self.url(&request.model)).json(request);
         http_request = match &self.auth {
-            Auth::ApiKey(api_key) => http_request.header("x-goog-api-key", api_key),
-            Auth::Bearer(access_token) => http_request.bearer_auth(access_token),
+            Auth::ApiKey(api_key) => http_request.header("x-goog-api-key", api_key.expose_secret()),
+            Auth::Bearer(access_token) => http_request.bearer_auth(access_token.expose_secret()),
         };
         let response = http_request.send().await?;
 
@@ -191,7 +193,7 @@ impl Executor {
     }
 }
 
-// Never derive Debug: it would print the credentials.
+// Manual Debug: keeps the output stable and the credentials visibly redacted.
 impl std::fmt::Debug for Executor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Executor")

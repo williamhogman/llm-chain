@@ -38,3 +38,42 @@ pub enum OllamaError {
         message: String,
     },
 }
+
+impl OllamaError {
+    /// The HTTP status code associated with this error, when there is one.
+    pub fn status(&self) -> Option<u16> {
+        match self {
+            Self::Api { status, .. } => Some(*status),
+            Self::Http(error) => error.status().map(|status| status.as_u16()),
+            Self::Connection { .. } => None,
+        }
+    }
+
+    /// Returns `true` when the request was rejected for rate limiting (e.g.
+    /// by Ollama's cloud or a proxy) — worth retrying with backoff.
+    pub fn is_rate_limit(&self) -> bool {
+        self.status() == Some(429)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn status_and_rate_limits_are_exposed() {
+        let error = OllamaError::Api {
+            status: 429,
+            message: "slow down".to_string(),
+        };
+        assert_eq!(error.status(), Some(429));
+        assert!(error.is_rate_limit());
+
+        let error = OllamaError::Api {
+            status: 404,
+            message: "model not found".to_string(),
+        };
+        assert_eq!(error.status(), Some(404));
+        assert!(!error.is_rate_limit());
+    }
+}

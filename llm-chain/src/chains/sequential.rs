@@ -26,6 +26,22 @@ impl<S: Step> Chain<S> {
     pub fn of_one(step: S) -> Chain<S> {
         Chain { steps: vec![step] }
     }
+    /// Appends a step to the end of the chain.
+    pub fn push(&mut self, step: S) {
+        self.steps.push(step);
+    }
+    /// Returns the number of steps in the chain.
+    pub fn len(&self) -> usize {
+        self.steps.len()
+    }
+    /// Returns `true` if the chain has no steps.
+    pub fn is_empty(&self) -> bool {
+        self.steps.is_empty()
+    }
+    /// The steps of the chain, in execution order.
+    pub fn steps(&self) -> &[S] {
+        &self.steps
+    }
 
     /// Runs the chain, returning the output of the final step.
     ///
@@ -50,6 +66,31 @@ impl<S: Step> Chain<S> {
             output = Some(res);
         }
         output.ok_or(ChainError::Empty)
+    }
+}
+
+/// Collects steps into a chain, in iteration order.
+impl<S: Step> FromIterator<S> for Chain<S> {
+    fn from_iter<T: IntoIterator<Item = S>>(iter: T) -> Self {
+        Chain {
+            steps: iter.into_iter().collect(),
+        }
+    }
+}
+
+/// Appends steps to the end of the chain.
+impl<S: Step> Extend<S> for Chain<S> {
+    fn extend<T: IntoIterator<Item = S>>(&mut self, iter: T) {
+        self.steps.extend(iter);
+    }
+}
+
+/// Consumes the chain, yielding its steps in execution order.
+impl<S: Step> IntoIterator for Chain<S> {
+    type Item = S;
+    type IntoIter = std::vec::IntoIter<S>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.steps.into_iter()
     }
 }
 
@@ -82,5 +123,43 @@ impl<S: Step + StorableEntity> StorableEntity for Chain<S> {
         )];
         base.append(&mut S::get_metadata());
         base
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct EchoStep(&'static str);
+
+    impl Step for EchoStep {
+        type Output = String;
+        type Error = std::convert::Infallible;
+        fn format(&self, _parameters: &Parameters) -> Result<String, Self::Error> {
+            Ok(self.0.to_string())
+        }
+    }
+
+    #[test]
+    fn chains_compose_from_iterators() {
+        let mut chain: Chain<EchoStep> = [EchoStep("a"), EchoStep("b")].into_iter().collect();
+        assert_eq!(chain.len(), 2);
+        chain.push(EchoStep("c"));
+        chain.extend([EchoStep("d")]);
+        assert_eq!(chain.len(), 4);
+        assert!(!chain.is_empty());
+        let formatted: Vec<String> = chain
+            .into_iter()
+            .map(|step| step.format(&Parameters::new()).unwrap())
+            .collect();
+        assert_eq!(formatted, ["a", "b", "c", "d"]);
+    }
+
+    #[test]
+    fn empty_chains_report_empty() {
+        let chain: Chain<EchoStep> = Chain::new(vec![]);
+        assert!(chain.is_empty());
+        assert_eq!(chain.steps().len(), 0);
+        assert_eq!(chain.len(), 0);
     }
 }

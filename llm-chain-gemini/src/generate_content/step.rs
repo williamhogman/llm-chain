@@ -1,6 +1,3 @@
-use std::fmt;
-use std::str::FromStr;
-
 #[cfg(feature = "serialization")]
 use llm_chain::serialization::StorableEntity;
 use llm_chain::{Parameters, traits};
@@ -62,56 +59,20 @@ pub enum Model {
     Other(String),
 }
 
-impl fmt::Display for Model {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = match self {
-            Self::Gemini36Flash => "gemini-3.6-flash",
-            Self::Gemini35Flash => "gemini-3.5-flash",
-            Self::Gemini35FlashLite => "gemini-3.5-flash-lite",
-            Self::Gemini31ProPreview => "gemini-3.1-pro-preview",
-            Self::Gemini31FlashLite => "gemini-3.1-flash-lite",
-            Self::Gemini3FlashPreview => "gemini-3-flash-preview",
-            Self::Gemini25Pro => "gemini-2.5-pro",
-            Self::Gemini25Flash => "gemini-2.5-flash",
-            Self::Gemini25FlashLite => "gemini-2.5-flash-lite",
-            Self::Other(model) => model,
-        };
-        f.write_str(s)
+// One table drives Display, FromStr, KNOWN_IDS and the id-string serde impls.
+llm_chain::impl_model_id! {
+    Model {
+        Gemini36Flash => "gemini-3.6-flash",
+        Gemini35Flash => "gemini-3.5-flash",
+        Gemini35FlashLite => "gemini-3.5-flash-lite",
+        Gemini31ProPreview => "gemini-3.1-pro-preview",
+        Gemini31FlashLite => "gemini-3.1-flash-lite",
+        Gemini3FlashPreview => "gemini-3-flash-preview",
+        Gemini25Pro => "gemini-2.5-pro",
+        Gemini25Flash => "gemini-2.5-flash",
+        Gemini25FlashLite => "gemini-2.5-flash-lite",
     }
-}
-
-impl FromStr for Model {
-    type Err = std::convert::Infallible;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(match s {
-            "gemini-3.6-flash" => Self::Gemini36Flash,
-            "gemini-3.5-flash" => Self::Gemini35Flash,
-            "gemini-3.5-flash-lite" => Self::Gemini35FlashLite,
-            "gemini-3.1-pro-preview" => Self::Gemini31ProPreview,
-            "gemini-3.1-flash-lite" => Self::Gemini31FlashLite,
-            "gemini-3-flash-preview" => Self::Gemini3FlashPreview,
-            "gemini-2.5-pro" => Self::Gemini25Pro,
-            "gemini-2.5-flash" => Self::Gemini25Flash,
-            "gemini-2.5-flash-lite" => Self::Gemini25FlashLite,
-            other => Self::Other(other.to_string()),
-        })
-    }
-}
-
-// Models serialize as their Gemini model id, e.g. `gemini-3.6-flash`.
-#[cfg(feature = "serialization")]
-impl Serialize for Model {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&self.to_string())
-    }
-}
-
-#[cfg(feature = "serialization")]
-impl<'de> Deserialize<'de> for Model {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let s = String::deserialize(deserializer)?;
-        Ok(s.parse().expect("infallible"))
-    }
+    other: Other
 }
 
 /// The `Step` struct represents an individual step within a chain for Gemini models. It is responsible for configuring the input parameters for the model and providing the prompt.
@@ -202,21 +163,17 @@ mod tests {
 
     #[test]
     fn model_ids_round_trip() {
-        let models = [
-            Model::Gemini36Flash,
-            Model::Gemini35Flash,
-            Model::Gemini31ProPreview,
-            Model::Gemini31FlashLite,
-            Model::Gemini3FlashPreview,
-            Model::Gemini25Pro,
-            Model::Gemini25Flash,
-            Model::Gemini25FlashLite,
-            Model::Other("gemini-2.5-flash-preview-05-20".to_string()),
-        ];
-        for model in models {
-            let parsed: Model = model.to_string().parse().unwrap();
-            assert_eq!(parsed, model);
+        for id in Model::KNOWN_IDS {
+            let model: Model = id.parse().unwrap();
+            assert!(!matches!(model, Model::Other(_)), "{id} parsed as Other");
+            assert_eq!(model.to_string(), *id);
         }
+        let pinned: Model = "gemini-2.5-flash-preview-05-20".parse().unwrap();
+        assert_eq!(
+            pinned,
+            Model::Other("gemini-2.5-flash-preview-05-20".to_string())
+        );
+        assert_eq!(pinned.to_string(), "gemini-2.5-flash-preview-05-20");
     }
 
     #[test]

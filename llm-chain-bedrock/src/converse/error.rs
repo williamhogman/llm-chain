@@ -32,3 +32,52 @@ pub enum BedrockError {
         message: String,
     },
 }
+
+impl BedrockError {
+    /// The HTTP status code associated with this error, when there is one.
+    pub fn status(&self) -> Option<u16> {
+        match self {
+            Self::Api { status, .. } => Some(*status),
+            Self::Http(error) => error.status().map(|status| status.as_u16()),
+            Self::MissingBearerToken => None,
+        }
+    }
+
+    /// Returns `true` when the request was throttled — worth retrying with
+    /// backoff.
+    pub fn is_rate_limit(&self) -> bool {
+        match self {
+            Self::Api {
+                status, error_type, ..
+            } => *status == 429 || error_type == "ThrottlingException",
+            _ => self.status() == Some(429),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn api_error(status: u16, error_type: &str) -> BedrockError {
+        BedrockError::Api {
+            status,
+            error_type: error_type.to_string(),
+            message: "m".to_string(),
+        }
+    }
+
+    #[test]
+    fn status_is_exposed_for_api_errors() {
+        assert_eq!(api_error(400, "ValidationException").status(), Some(400));
+        assert_eq!(BedrockError::MissingBearerToken.status(), None);
+    }
+
+    #[test]
+    fn throttling_is_retryable() {
+        assert!(api_error(429, "ThrottlingException").is_rate_limit());
+        assert!(api_error(400, "ThrottlingException").is_rate_limit());
+        assert!(!api_error(400, "ValidationException").is_rate_limit());
+        assert!(!BedrockError::MissingBearerToken.is_rate_limit());
+    }
+}

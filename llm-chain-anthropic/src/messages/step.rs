@@ -1,6 +1,3 @@
-use std::fmt;
-use std::str::FromStr;
-
 #[cfg(feature = "serialization")]
 use llm_chain::serialization::StorableEntity;
 use llm_chain::{Parameters, traits};
@@ -63,58 +60,21 @@ pub enum Model {
     Other(String),
 }
 
-impl fmt::Display for Model {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = match self {
-            Self::ClaudeFable5 => "claude-fable-5",
-            Self::ClaudeOpus5 => "claude-opus-5",
-            Self::ClaudeSonnet5 => "claude-sonnet-5",
-            Self::ClaudeHaiku45 => "claude-haiku-4-5",
-            Self::ClaudeOpus48 => "claude-opus-4-8",
-            Self::ClaudeOpus47 => "claude-opus-4-7",
-            Self::ClaudeOpus46 => "claude-opus-4-6",
-            Self::ClaudeSonnet46 => "claude-sonnet-4-6",
-            Self::ClaudeOpus45 => "claude-opus-4-5",
-            Self::ClaudeSonnet45 => "claude-sonnet-4-5",
-            Self::Other(model) => model,
-        };
-        f.write_str(s)
+// One table drives Display, FromStr, KNOWN_IDS and the id-string serde impls.
+llm_chain::impl_model_id! {
+    Model {
+        ClaudeFable5 => "claude-fable-5",
+        ClaudeOpus5 => "claude-opus-5",
+        ClaudeSonnet5 => "claude-sonnet-5",
+        ClaudeHaiku45 => "claude-haiku-4-5",
+        ClaudeOpus48 => "claude-opus-4-8",
+        ClaudeOpus47 => "claude-opus-4-7",
+        ClaudeOpus46 => "claude-opus-4-6",
+        ClaudeSonnet46 => "claude-sonnet-4-6",
+        ClaudeOpus45 => "claude-opus-4-5",
+        ClaudeSonnet45 => "claude-sonnet-4-5",
     }
-}
-
-impl FromStr for Model {
-    type Err = std::convert::Infallible;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(match s {
-            "claude-fable-5" => Self::ClaudeFable5,
-            "claude-opus-5" => Self::ClaudeOpus5,
-            "claude-sonnet-5" => Self::ClaudeSonnet5,
-            "claude-haiku-4-5" => Self::ClaudeHaiku45,
-            "claude-opus-4-8" => Self::ClaudeOpus48,
-            "claude-opus-4-7" => Self::ClaudeOpus47,
-            "claude-opus-4-6" => Self::ClaudeOpus46,
-            "claude-sonnet-4-6" => Self::ClaudeSonnet46,
-            "claude-opus-4-5" => Self::ClaudeOpus45,
-            "claude-sonnet-4-5" => Self::ClaudeSonnet45,
-            other => Self::Other(other.to_string()),
-        })
-    }
-}
-
-// Models serialize as their Anthropic model id, e.g. `claude-sonnet-5`.
-#[cfg(feature = "serialization")]
-impl Serialize for Model {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&self.to_string())
-    }
-}
-
-#[cfg(feature = "serialization")]
-impl<'de> Deserialize<'de> for Model {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let s = String::deserialize(deserializer)?;
-        Ok(s.parse().expect("infallible"))
-    }
+    other: Other
 }
 
 /// The `Step` struct represents an individual step within a chain for Claude models. It is responsible for configuring the input parameters for the model and providing the prompt.
@@ -211,23 +171,17 @@ mod tests {
 
     #[test]
     fn model_ids_round_trip() {
-        let models = [
-            Model::ClaudeFable5,
-            Model::ClaudeOpus5,
-            Model::ClaudeSonnet5,
-            Model::ClaudeHaiku45,
-            Model::ClaudeOpus48,
-            Model::ClaudeOpus47,
-            Model::ClaudeOpus46,
-            Model::ClaudeSonnet46,
-            Model::ClaudeOpus45,
-            Model::ClaudeSonnet45,
-            Model::Other("claude-sonnet-4-5-20250929".to_string()),
-        ];
-        for model in models {
-            let parsed: Model = model.to_string().parse().unwrap();
-            assert_eq!(parsed, model);
+        for id in Model::KNOWN_IDS {
+            let model: Model = id.parse().unwrap();
+            assert!(!matches!(model, Model::Other(_)), "{id} parsed as Other");
+            assert_eq!(model.to_string(), *id);
         }
+        let pinned: Model = "claude-sonnet-4-5-20250929".parse().unwrap();
+        assert_eq!(
+            pinned,
+            Model::Other("claude-sonnet-4-5-20250929".to_string())
+        );
+        assert_eq!(pinned.to_string(), "claude-sonnet-4-5-20250929");
     }
 
     #[test]

@@ -81,20 +81,7 @@ impl From<String> for Model {
 }
 
 // Models serialize as their Ollama name, e.g. `qwen3:32b`.
-#[cfg(feature = "serialization")]
-impl Serialize for Model {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&self.0)
-    }
-}
-
-#[cfg(feature = "serialization")]
-impl<'de> Deserialize<'de> for Model {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let s = String::deserialize(deserializer)?;
-        Ok(Self(s))
-    }
-}
+llm_chain::impl_model_id_serde!(Model);
 
 /// The `Step` struct represents an individual step within a chain for Ollama-served models. It is responsible for configuring the input parameters for the model and providing the prompt.
 ///

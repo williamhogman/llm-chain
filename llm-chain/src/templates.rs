@@ -92,7 +92,7 @@ fn apply_formatting(
 /// let parameters: Parameters = vec![("name", "World")].into();
 /// assert_eq!(template.format(&parameters).unwrap(), "Hello World!");
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct PromptTemplate {
     template: String,
@@ -106,6 +106,17 @@ impl PromptTemplate {
     /// Format the template with the given parameters.
     pub fn format(&self, parameters: &Parameters) -> Result<String, PromptTemplateError> {
         apply_formatting(&self.template, parameters)
+    }
+    /// The raw template string, with placeholders unexpanded.
+    pub fn as_str(&self) -> &str {
+        &self.template
+    }
+}
+
+/// Displays the raw template string, with placeholders unexpanded.
+impl std::fmt::Display for PromptTemplate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.template)
     }
 }
 
@@ -185,5 +196,19 @@ mod tests {
         let template: PromptTemplate = "Hello { name }!".into();
         let parameters: Parameters = vec![("name", "World")].into();
         assert_eq!(template.format(&parameters).unwrap(), "Hello World!");
+    }
+
+    #[test]
+    fn test_display_and_as_str_return_the_raw_template() {
+        let template: PromptTemplate = "Hello {name}!".into();
+        assert_eq!(template.as_str(), "Hello {name}!");
+        assert_eq!(template.to_string(), "Hello {name}!");
+    }
+
+    #[test]
+    fn test_templates_compare_by_contents() {
+        let a: PromptTemplate = "Hello {}!".into();
+        let b: PromptTemplate = "Hello {}!".into();
+        assert_eq!(a, b);
     }
 }
