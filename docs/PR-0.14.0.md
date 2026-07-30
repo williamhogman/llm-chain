@@ -124,7 +124,8 @@ llama.cpp FFI with a git submodule) are deprecated or unmaintained.
 
 **Repository & workspace**
 - Crates laid out under `crates/*`, matching upstream's layout; `Cargo.lock`
-  committed; `SECURITY.md` and a modern cargo-deny v2 `deny.toml` added.
+  committed; `SECURITY.md` and a modern cargo-deny v2 `deny.toml` added,
+  enforced by a CI audit job.
 
 **Website**
 - The Docusaurus site (`website/`, docs.llm-chain.xyz) ported and upgraded

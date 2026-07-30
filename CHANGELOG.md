@@ -120,7 +120,8 @@ for a step-by-step upgrade guide from both 0.1.x and 0.13.x.
 - Tag-triggered release workflow publishing all crates to crates.io in
   dependency order.
 - Workspace reorganized into the upstream `crates/*` layout; `Cargo.lock`
-  committed; `SECURITY.md` and a cargo-deny v2 `deny.toml` added.
+  committed; `SECURITY.md` and a cargo-deny v2 `deny.toml` added and
+  enforced by a CI audit job (advisories, bans, licenses, sources).
 - Documentation website (`website/`, docs.llm-chain.xyz) ported to
   Docusaurus 3 (React 19, MDX v3): every docs page rewritten for the 0.14
   API, a new Providers page, the historical blog preserved plus a 0.14
