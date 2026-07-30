@@ -58,8 +58,8 @@ the publishing (requires the `CARGO_REGISTRY_TOKEN` repository secret).
 ## 4. Tag and announce
 
 ```bash
-git tag -a v0.2.0 -m "llm-chain 0.2.0"
-git push origin v0.2.0
+git tag -a v0.14.0 -m "llm-chain 0.14.0"
+git push origin v0.14.0
 ```
 
 Create a GitHub release from the tag and paste the matching `CHANGELOG.md`

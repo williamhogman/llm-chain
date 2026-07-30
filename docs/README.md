@@ -49,13 +49,13 @@ To start using `llm-chain`, add it as a dependency in your `Cargo.toml` (require
 
 ```toml
 [dependencies]
-llm-chain = "0.2.0"
-llm-chain-openai = "0.2.0"     # OpenAI (GPT) + Azure OpenAI
-llm-chain-anthropic = "0.2.0"  # Anthropic (Claude)
-llm-chain-gemini = "0.2.0"     # Google (Gemini) + Vertex AI
-llm-chain-bedrock = "0.2.0"    # AWS Bedrock (Converse API)
-llm-chain-ollama = "0.2.0"     # Ollama (local or cloud open-weight models)
-llm-chain-llama = "0.2.0"      # Local GGUF models via llama.cpp
+llm-chain = "0.14.0"
+llm-chain-openai = "0.14.0"     # OpenAI (GPT) + Azure OpenAI
+llm-chain-anthropic = "0.14.0"  # Anthropic (Claude)
+llm-chain-gemini = "0.14.0"     # Google (Gemini) + Vertex AI
+llm-chain-bedrock = "0.14.0"    # AWS Bedrock (Converse API)
+llm-chain-ollama = "0.14.0"     # Ollama (local or cloud open-weight models)
+llm-chain-llama = "0.14.0"      # Local GGUF models via llama.cpp
 ```
 
 Claude example:
@@ -141,7 +141,7 @@ let exec = llm_chain_gemini::generate_content::Executor::vertex_express(api_key)
 
 Then, refer to the [documentation](https://docs.rs/llm-chain) and the examples ([OpenAI](/llm-chain-openai/examples), [Anthropic](/llm-chain-anthropic/examples), [Gemini](/llm-chain-gemini/examples), [Bedrock](/llm-chain-bedrock/examples), [Ollama](/llm-chain-ollama/examples)) to learn how to create prompt templates, chains, and more.
 
-Upgrading from 0.1.x? See the [migration guide](/docs/MIGRATION-0.2.md). Every release is documented in the [changelog](/CHANGELOG.md).
+Upgrading from 0.1.x or 0.13.x? See the [migration guide](/docs/MIGRATION-0.14.md). Every release is documented in the [changelog](/CHANGELOG.md).
 
 ## Contributing 🤝
 

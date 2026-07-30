@@ -12,7 +12,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.2.0"
+version = "0.14.0"
 edition = "2024"
 rust-version = "1.85"
 license = "MIT"
@@ -23,7 +23,7 @@ authors = [
 repository = "https://github.com/sobelio/llm-chain/"
 
 [workspace.dependencies]
-llm-chain = { path = "llm-chain", version = "0.2.0" }
+llm-chain = { path = "llm-chain", version = "0.14.0" }
 async-openai = { version = "0.41", features = ["chat-completion"] }
 futures = "0.3.31"
 llama-cpp-2 = "0.1.153"

@@ -53,7 +53,7 @@ pub mod chat;
 
 /// Deprecated alias for the [`chat`] module.
 #[deprecated(
-    since = "0.2.0",
+    since = "0.14.0",
     note = "the `chatgpt` module has been renamed to `chat`"
 )]
 pub mod chatgpt {
