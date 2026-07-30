@@ -141,6 +141,8 @@ let exec = llm_chain_gemini::generate_content::Executor::vertex_express(api_key)
 
 Then, refer to the [documentation](https://docs.rs/llm-chain) and the examples ([OpenAI](/llm-chain-openai/examples), [Anthropic](/llm-chain-anthropic/examples), [Gemini](/llm-chain-gemini/examples), [Bedrock](/llm-chain-bedrock/examples), [Ollama](/llm-chain-ollama/examples)) to learn how to create prompt templates, chains, and more.
 
+Upgrading from 0.1.x? See the [migration guide](/docs/MIGRATION-0.2.md). Every release is documented in the [changelog](/CHANGELOG.md).
+
 ## Contributing 🤝
 
 We warmly welcome contributions from everyone! If you're interested in helping improve `llm-chain`, please check out our [`CONTRIBUTING.md`](/docs/CONTRIBUTING.md) file for guidelines and best practices.
