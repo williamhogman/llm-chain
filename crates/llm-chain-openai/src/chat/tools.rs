@@ -35,7 +35,7 @@ use async_openai::types::chat::{
 /// Builds a function tool from a name, a description and a JSON Schema for
 /// its parameters.
 ///
-/// Use [`ToolCollection::tool_specs`](https://docs.rs/llm-chain-tools) to
+/// Use [`ToolCollection::tool_schemas`](https://docs.rs/llm-chain-tools) to
 /// bridge an existing `llm-chain-tools` collection into function tools.
 pub fn function_tool<N: Into<String>, D: Into<String>>(
     name: N,
