@@ -196,3 +196,63 @@ async fn chains_run_end_to_end_against_the_mock() {
     assert_eq!(res.text(), "chained");
     server.join().unwrap();
 }
+
+#[tokio::test(flavor = "current_thread")]
+async fn vertex_requests_are_project_scoped_with_bearer_auth() {
+    let (addr, server) = spawn_one_shot(
+        "HTTP/1.1 200 OK",
+        r#"{
+            "candidates": [{
+                "content": {"role": "model", "parts": [{"text": "Hello from Vertex"}]},
+                "finishReason": "STOP"
+            }],
+            "usageMetadata": {"promptTokenCount": 3, "candidatesTokenCount": 4, "totalTokenCount": 7}
+        }"#,
+    );
+
+    let exec = Executor::vertex("my-project", "europe-north1", "ya29-token").with_base_url(&addr);
+    let step = Step::new(Model::default(), [(Role::User, "hi")]);
+    let request = step.format(&Parameters::new()).unwrap();
+    let response = exec.execute(request).await.unwrap();
+    assert_eq!(response.text(), "Hello from Vertex");
+
+    let captured = server.join().unwrap();
+    // Vertex scopes the path by project and location; same wire format otherwise.
+    assert!(captured.head.starts_with(
+        "POST /v1/projects/my-project/locations/europe-north1/publishers/google/models/gemini-3.6-flash:generateContent HTTP/1.1\r\n"
+    ));
+    let head_lower = captured.head.to_lowercase();
+    assert!(head_lower.contains("authorization: bearer ya29-token"));
+    assert!(!head_lower.contains("x-goog-api-key"));
+    assert_eq!(captured.body["contents"][0]["parts"][0]["text"], "hi");
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn vertex_express_requests_use_api_keys() {
+    let (addr, server) = spawn_one_shot(
+        "HTTP/1.1 200 OK",
+        r#"{
+            "candidates": [{
+                "content": {"role": "model", "parts": [{"text": "Hello from express"}]},
+                "finishReason": "STOP"
+            }],
+            "usageMetadata": {"promptTokenCount": 3, "candidatesTokenCount": 4, "totalTokenCount": 7}
+        }"#,
+    );
+
+    let exec = Executor::vertex_express("express-key").with_base_url(&addr);
+    let step = Step::new(Model::default(), [(Role::User, "hi")]);
+    let request = step.format(&Parameters::new()).unwrap();
+    let response = exec.execute(request).await.unwrap();
+    assert_eq!(response.text(), "Hello from express");
+
+    let captured = server.join().unwrap();
+    // Express mode drops the project/location scoping and authenticates like
+    // the consumer API.
+    assert!(captured.head.starts_with(
+        "POST /v1/publishers/google/models/gemini-3.6-flash:generateContent HTTP/1.1\r\n"
+    ));
+    let head_lower = captured.head.to_lowercase();
+    assert!(head_lower.contains("x-goog-api-key: express-key"));
+    assert!(!head_lower.contains("authorization:"));
+}

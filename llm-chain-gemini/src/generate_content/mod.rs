@@ -16,6 +16,7 @@ mod types;
 pub use error::{FormatError, GeminiError};
 pub use executor::{
     API_KEY_ENV_VAR, API_KEY_FALLBACK_ENV_VAR, API_VERSION, DEFAULT_BASE_URL, Executor,
+    VERTEX_API_VERSION, VERTEX_BASE_URL,
 };
 pub use options::Options;
 pub use prompt::{ChatPromptTemplate, MessagePromptTemplate};

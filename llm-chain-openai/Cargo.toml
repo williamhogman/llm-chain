@@ -18,6 +18,8 @@ serialization = ["dep:serde", "llm-chain/serialization"]
 [dependencies]
 async-openai.workspace = true
 llm-chain.workspace = true
+reqwest.workspace = true
+secrecy.workspace = true
 serde = { workspace = true, optional = true }
 thiserror.workspace = true
 

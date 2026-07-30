@@ -7,12 +7,38 @@ use super::types::{Content, GenerateContentRequest, GenerateContentResponse, Rol
 pub const API_KEY_ENV_VAR: &str = "GEMINI_API_KEY";
 /// The fallback environment variable holding the API key.
 pub const API_KEY_FALLBACK_ENV_VAR: &str = "GOOGLE_API_KEY";
-/// The default API endpoint.
+/// The default API endpoint (the consumer Gemini API).
 pub const DEFAULT_BASE_URL: &str = "https://generativelanguage.googleapis.com";
-/// The API version this crate speaks.
+/// The API version this crate speaks on the consumer Gemini API.
 pub const API_VERSION: &str = "v1beta";
+/// The endpoint serving Vertex AI's global location and express mode.
+pub const VERTEX_BASE_URL: &str = "https://aiplatform.googleapis.com";
+/// The API version this crate speaks on Vertex AI.
+pub const VERTEX_API_VERSION: &str = "v1";
 
-/// The executor for the Gemini API.
+/// How requests authenticate. Never derives Debug: it holds credentials.
+#[derive(Clone)]
+enum Auth {
+    /// `x-goog-api-key` header: consumer Gemini API keys and Vertex express keys.
+    ApiKey(String),
+    /// `Authorization: Bearer` header: Vertex OAuth2 access tokens.
+    Bearer(String),
+}
+
+/// Which URL layout the endpoint uses. The wire format is identical on all of
+/// them; only the path (and auth) differs.
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum Route {
+    /// The consumer Gemini API: `/v1beta/models/{model}:generateContent`.
+    GenerativeLanguage,
+    /// Vertex AI, scoped to a project and location:
+    /// `/v1/projects/{project}/locations/{location}/publishers/google/models/{model}:generateContent`.
+    Vertex { project: String, location: String },
+    /// Vertex AI express mode: `/v1/publishers/google/models/{model}:generateContent`.
+    VertexExpress,
+}
+
+/// The executor for Gemini models, on the consumer Gemini API or on Vertex AI.
 ///
 /// Holds the HTTP client and credentials. Cheap to clone; clones share the
 /// underlying connection pool.
@@ -22,21 +48,28 @@ pub const API_VERSION: &str = "v1beta";
 /// ```no_run
 /// use llm_chain_gemini::generate_content::Executor;
 ///
-/// // Reads GEMINI_API_KEY (or GOOGLE_API_KEY) from the environment.
+/// // Consumer Gemini API: reads GEMINI_API_KEY (or GOOGLE_API_KEY) from the environment.
 /// let exec = Executor::new_default().unwrap();
 /// // Or provide the key explicitly:
 /// let exec = Executor::with_api_key("AIza...");
+///
+/// // Vertex AI with an OAuth2 access token (`gcloud auth print-access-token`):
+/// let exec = Executor::vertex("my-project", "europe-north1", "ya29....");
+/// // Vertex AI express mode with an API key:
+/// let exec = Executor::vertex_express("AQ....");
 /// ```
 #[derive(Clone)]
 pub struct Executor {
     client: reqwest::Client,
-    api_key: String,
+    auth: Auth,
     base_url: String,
+    route: Route,
 }
 
 impl Executor {
-    /// Creates an executor with the API key from the `GEMINI_API_KEY`
-    /// environment variable, falling back to `GOOGLE_API_KEY`.
+    /// Creates an executor for the consumer Gemini API with the API key from
+    /// the `GEMINI_API_KEY` environment variable, falling back to
+    /// `GOOGLE_API_KEY`.
     ///
     /// # Errors
     ///
@@ -52,35 +85,94 @@ impl Executor {
         Err(GeminiError::MissingApiKey)
     }
 
-    /// Creates an executor with an explicit API key.
+    /// Creates an executor for the consumer Gemini API with an explicit API key.
     pub fn with_api_key<S: Into<String>>(api_key: S) -> Self {
         Self {
             client: reqwest::Client::new(),
-            api_key: api_key.into(),
+            auth: Auth::ApiKey(api_key.into()),
             base_url: DEFAULT_BASE_URL.to_string(),
+            route: Route::GenerativeLanguage,
         }
     }
 
-    /// Overrides the API endpoint, e.g. for a gateway or proxy.
+    /// Creates an executor for Vertex AI, scoped to a Google Cloud project and
+    /// location and authenticating with an OAuth2 access token.
+    ///
+    /// Get a token with `gcloud auth print-access-token` or from a service
+    /// account / Application Default Credentials. Access tokens are
+    /// short-lived (about an hour): mint a fresh executor when yours expires.
+    ///
+    /// The location picks the serving region, e.g. `us-central1` or
+    /// `europe-north1`; pass `global` to let Google route to whichever region
+    /// has capacity (recommended for the newest models).
+    pub fn vertex<P, L, T>(project: P, location: L, access_token: T) -> Self
+    where
+        P: Into<String>,
+        L: Into<String>,
+        T: Into<String>,
+    {
+        let location = location.into();
+        let base_url = if location == "global" {
+            VERTEX_BASE_URL.to_string()
+        } else {
+            format!("https://{location}-aiplatform.googleapis.com")
+        };
+        Self {
+            client: reqwest::Client::new(),
+            auth: Auth::Bearer(access_token.into()),
+            base_url,
+            route: Route::Vertex {
+                project: project.into(),
+                location,
+            },
+        }
+    }
+
+    /// Creates an executor for Vertex AI express mode with an API key — no
+    /// project or location setup required.
+    pub fn vertex_express<S: Into<String>>(api_key: S) -> Self {
+        Self {
+            client: reqwest::Client::new(),
+            auth: Auth::ApiKey(api_key.into()),
+            base_url: VERTEX_BASE_URL.to_string(),
+            route: Route::VertexExpress,
+        }
+    }
+
+    /// Overrides the API endpoint, e.g. for a gateway or proxy. The URL layout
+    /// (consumer API or Vertex) is preserved.
     pub fn with_base_url<S: Into<String>>(mut self, base_url: S) -> Self {
         self.base_url = base_url.into().trim_end_matches('/').to_string();
         self
+    }
+
+    fn url(&self, model: &str) -> String {
+        match &self.route {
+            Route::GenerativeLanguage => format!(
+                "{}/{}/models/{}:generateContent",
+                self.base_url, API_VERSION, model
+            ),
+            Route::Vertex { project, location } => format!(
+                "{}/{}/projects/{}/locations/{}/publishers/google/models/{}:generateContent",
+                self.base_url, VERTEX_API_VERSION, project, location, model
+            ),
+            Route::VertexExpress => format!(
+                "{}/{}/publishers/google/models/{}:generateContent",
+                self.base_url, VERTEX_API_VERSION, model
+            ),
+        }
     }
 
     async fn send(
         &self,
         request: &GenerateContentRequest,
     ) -> Result<GenerateContentResponse, GeminiError> {
-        let response = self
-            .client
-            .post(format!(
-                "{}/{}/models/{}:generateContent",
-                self.base_url, API_VERSION, request.model
-            ))
-            .header("x-goog-api-key", &self.api_key)
-            .json(request)
-            .send()
-            .await?;
+        let mut http_request = self.client.post(self.url(&request.model)).json(request);
+        http_request = match &self.auth {
+            Auth::ApiKey(api_key) => http_request.header("x-goog-api-key", api_key),
+            Auth::Bearer(access_token) => http_request.bearer_auth(access_token),
+        };
+        let response = http_request.send().await?;
 
         let status = response.status();
         if !status.is_success() {
@@ -99,12 +191,19 @@ impl Executor {
     }
 }
 
-// Never derive Debug: it would print the API key.
+// Never derive Debug: it would print the credentials.
 impl std::fmt::Debug for Executor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Executor")
-            .field("api_key", &"[REDACTED]")
+            .field(
+                match self.auth {
+                    Auth::ApiKey(_) => "api_key",
+                    Auth::Bearer(_) => "access_token",
+                },
+                &"[REDACTED]",
+            )
             .field("base_url", &self.base_url)
+            .field("route", &self.route)
             .finish()
     }
 }
@@ -200,9 +299,54 @@ mod tests {
     }
 
     #[test]
+    fn debug_never_prints_the_access_token() {
+        let exec = Executor::vertex("my-project", "global", "ya29-secret");
+        let debug = format!("{exec:?}");
+        assert!(!debug.contains("secret"));
+        assert!(debug.contains("[REDACTED]"));
+        assert!(debug.contains("access_token"));
+    }
+
+    #[test]
     fn base_url_trailing_slash_is_normalized() {
         let exec = Executor::with_api_key("k").with_base_url("https://gateway.example.com/");
         assert_eq!(exec.base_url, "https://gateway.example.com");
+    }
+
+    #[test]
+    fn consumer_api_urls_use_v1beta_models() {
+        let exec = Executor::with_api_key("k");
+        assert_eq!(
+            exec.url("gemini-3.6-flash"),
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent"
+        );
+    }
+
+    #[test]
+    fn vertex_urls_are_project_and_location_scoped() {
+        let exec = Executor::vertex("my-project", "europe-north1", "token");
+        assert_eq!(
+            exec.url("gemini-3.6-flash"),
+            "https://europe-north1-aiplatform.googleapis.com/v1/projects/my-project/locations/europe-north1/publishers/google/models/gemini-3.6-flash:generateContent"
+        );
+    }
+
+    #[test]
+    fn vertex_global_location_uses_the_global_endpoint() {
+        let exec = Executor::vertex("my-project", "global", "token");
+        assert_eq!(
+            exec.url("gemini-3.6-flash"),
+            "https://aiplatform.googleapis.com/v1/projects/my-project/locations/global/publishers/google/models/gemini-3.6-flash:generateContent"
+        );
+    }
+
+    #[test]
+    fn vertex_express_urls_have_no_project_scoping() {
+        let exec = Executor::vertex_express("k");
+        assert_eq!(
+            exec.url("gemini-3.6-flash"),
+            "https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-3.6-flash:generateContent"
+        );
     }
 
     #[test]
