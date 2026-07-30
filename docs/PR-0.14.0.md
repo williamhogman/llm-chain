@@ -153,10 +153,10 @@ llama.cpp FFI with a git submodule) are deprecated or unmaintained.
 
 ### Numbers
 
-- Against the `51cce6b` fork point: 210 files changed, ~34,400 insertions,
-  ~2,500 deletions (including the ported website and the committed
+- Against the `51cce6b` fork point: 215 files changed, ~36,900 insertions,
+  ~2,600 deletions (including the ported website and the committed
   `Cargo.lock` / `package-lock.json` lockfiles).
-- 23 test suites, 219 unit/integration/doc tests — including mock-API wire
+- 24 test suites, 255 unit/integration/doc tests — including mock-API wire
   format suites for Anthropic/Gemini/Bedrock/Ollama (no API keys needed) and
   a real GGUF end-to-end inference test.
 
