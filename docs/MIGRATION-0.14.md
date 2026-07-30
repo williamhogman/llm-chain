@@ -1,8 +1,13 @@
-# Migrating from 0.1.x to 0.2.0
+# Migrating to 0.14.0
 
-0.2.0 is a breaking release that modernizes every crate in the workspace.
-This guide covers each change you will hit when upgrading, with before/after
-snippets.
+0.14.0 is a breaking release that modernizes every crate in the workspace.
+It descends from the 0.1.x architecture, so there are two starting points:
+
+- **From 0.1.x** — the bulk of this guide; each change with before/after
+  snippets.
+- **From 0.13.x** — see the [dedicated section](#coming-from-013x) at the
+  end. 0.14.0 is *not* an incremental upgrade from the 0.13 line; it
+  replaces that architecture.
 
 ## Requirements
 
@@ -22,7 +27,7 @@ instead of panicking on missing parameters:
 // 0.1.x
 let text = template.format(&parameters);
 
-// 0.2.0
+// 0.14.0
 let text = template.format(&parameters)?;
 ```
 
@@ -37,7 +42,7 @@ Literal braces are escaped by doubling: `{{` renders `{`, `}}` renders `}`.
 // 0.1.x
 let res = chain.run(Parameters::new(), exec).await;
 
-// 0.2.0
+// 0.14.0
 let res = chain.run(Parameters::new(), &exec).await?;
 ```
 
@@ -49,7 +54,7 @@ The `Executor` trait no longer uses `#[async_trait]`. If you implement your
 own driver, drop the attribute and add typed errors:
 
 ```rust
-// 0.2.0
+// 0.14.0
 impl Step for MyStep {
     type Output = MyPrompt;
     type Error = MyFormatError;                    // new
@@ -80,7 +85,7 @@ unchanged; only the dependency changed. File I/O helpers are gated behind the
 // 0.1.x
 use llm_chain_openai::chatgpt::{Executor, Model, Role, Step};
 
-// 0.2.0
+// 0.14.0
 use llm_chain_openai::chat::{Executor, Model, Role, Step};
 ```
 
@@ -153,7 +158,7 @@ and `vulkan` features.
 // 0.1.x
 fn invoke(&self, input: Value) -> Value;
 
-// 0.2.0
+// 0.14.0
 fn invoke(&self, input: Value) -> Result<Value, ToolError>;
 ```
 
@@ -163,3 +168,28 @@ Anthropic, Gemini (+ Vertex AI), Bedrock and Ollama are new crates that
 follow the exact same `Step` / `Executor` / `Options` shape — switching
 providers is a matter of swapping imports. See the
 [README](README.md) for a getting-started example per provider.
+
+## Coming from 0.13.x
+
+The 0.3–0.13 line (2023–2024) reworked the crate around the
+`prompt!`/`executor!` macros, a unified string-keyed `Options` map, and a
+`crates/*` layout. 0.14.0 does not build on that line — it replaces it.
+Expect a rewrite of call sites rather than a mechanical migration:
+
+| 0.13.x concept | 0.14.0 equivalent |
+| --- | --- |
+| `prompt!("system", "user {text}")` | `Step::new(model, [(Role::System, ...), (Role::User, "{text}")])` per provider |
+| `executor!(chatgpt)` macro | `Executor::new()` / `Executor::with_api_key(...)` per provider crate |
+| Unified `Options` map (`OptionsBuilder`) | Typed per-provider `Options` builders (compile-time checked) |
+| `chains::conversation::Chain` | Not carried over — model a conversation as a sequential chain, or file an issue |
+| SSE streaming (`stream` option) | Not yet available in 0.14.0 (planned) |
+| `llm-chain-local`, `llm-chain-mock` | Not carried over — `llm-chain-llama` (GGUF) covers local inference; mock executors live in each crate's test suite |
+| `llm-chain-qdrant` / `-milvus` / `-hnsw` vector stores | Not carried over — use the vector-store clients directly |
+| `llm-chain-sagemaker-endpoint` | Superseded by `llm-chain-bedrock` (Converse API) |
+| `llm-chain-gemma(-sys)` | Superseded by `llm-chain-llama` (Gemma GGUF builds) or `llm-chain-gemini` |
+
+What you gain over 0.13.x: Rust 2024 / native async traits (no
+`async-trait`), typed errors end to end, 2026 model lineups for five hosted
+providers plus Azure/Vertex/Bedrock front doors, `SecretString` credential
+hygiene, and maintained dependencies throughout (`thiserror` 2,
+`serde_yaml_ng`, `llama-cpp-2`, `reqwest` 0.13).

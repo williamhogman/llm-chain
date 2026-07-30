@@ -44,9 +44,9 @@ To start using `llm-chain-tools`, add it as a dependency in your Cargo.toml:
 
 ```toml
 [dependencies]
-llm-chain = "0.2.0"
-llm-chain-openai = "0.2.0"
-llm-chain-tools = "0.2.0"
+llm-chain = "0.14.0"
+llm-chain-openai = "0.14.0"
+llm-chain-tools = "0.14.0"
 ```
 
 Then, refer to the documentation and examples to learn how to create and manage tools, integrate them into prompts, and more.
