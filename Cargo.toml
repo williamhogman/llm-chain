@@ -4,6 +4,7 @@ members = [
     "llm-chain",
     "llm-chain-anthropic",
     "llm-chain-gemini",
+    "llm-chain-ollama",
     "llm-chain-openai",
     "llm-chain-tools",
     "llm-chain-llama",
