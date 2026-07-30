@@ -207,6 +207,31 @@ impl Options {
         self
     }
 
+    /// Declares tools the model may call (models with tool support, e.g.
+    /// qwen3 or gpt-oss).
+    ///
+    /// When the model decides to call one, the calls are available via
+    /// [`ChatResponse::tool_calls`](super::ChatResponse::tool_calls); answer
+    /// them with [`ChatRequest::with_tool_results`](super::ChatRequest::with_tool_results).
+    ///
+    /// ```
+    /// use llm_chain_ollama::chat::{Options, Tool};
+    ///
+    /// let options = Options::new().with_tools([Tool::function(
+    ///     "get_weather",
+    ///     "Get the current weather in a city",
+    ///     serde_json::json!({
+    ///         "type": "object",
+    ///         "properties": {"city": {"type": "string"}},
+    ///         "required": ["city"]
+    ///     }),
+    /// )]);
+    /// ```
+    pub fn with_tools(mut self, tools: impl IntoIterator<Item = Tool>) -> Self {
+        self.tools = Some(tools.into_iter().collect());
+        self
+    }
+
     /// Applies every set option to a request.
     pub(crate) fn apply(&self, request: &mut ChatRequest) {
         request.options.temperature = self.temperature;
@@ -221,6 +246,7 @@ impl Options {
         request.think = self.think;
         request.format = self.format.clone();
         request.keep_alive = self.keep_alive.clone();
+        request.tools = self.tools.clone();
     }
 }
 
@@ -237,6 +263,7 @@ mod tests {
             think: None,
             format: None,
             keep_alive: None,
+            tools: None,
             options: ModelOptions::default(),
         }
     }
