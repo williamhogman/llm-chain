@@ -94,9 +94,10 @@ git submodule) are deprecated, unmaintained, or years out of date.
 ### Numbers
 
 - 133 files changed, ~10,400 insertions, ~2,100 deletions.
-- 21 test suites, ~180 unit/integration/doc tests — including mock-API wire
+- 22 test suites, 209 unit/integration/doc tests — including mock-API wire
   format suites for Anthropic/Gemini/Bedrock/Ollama (no API keys needed) and
   a real GGUF end-to-end inference test.
+
 
 ### Breaking changes
 
