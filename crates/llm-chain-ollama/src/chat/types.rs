@@ -394,6 +394,13 @@ impl ChatResponse {
         self.message.thinking.as_deref()
     }
 
+    /// The tool calls the model made, in order; empty when it answered
+    /// directly. Run each tool and continue with
+    /// [`ChatRequest::with_tool_results`].
+    pub fn tool_calls(&self) -> &[ToolCall] {
+        self.message.tool_calls.as_deref().unwrap_or_default()
+    }
+
     /// Generation speed in tokens per second, when the server reported timings.
     pub fn eval_rate(&self) -> Option<f64> {
         match (self.eval_count, self.eval_duration) {
@@ -409,24 +416,109 @@ impl ChatResponse {
 mod tests {
     use super::*;
 
-    #[test]
-    fn request_serializes_minimally() {
-        let request = ChatRequest {
+    fn minimal_request() -> ChatRequest {
+        ChatRequest {
             model: "qwen3".to_string(),
             messages: vec![Message::new(Role::User, "hi")],
             stream: false,
             think: None,
             format: None,
             keep_alive: None,
+            tools: None,
             options: ModelOptions::default(),
-        };
-        let json = serde_json::to_value(&request).unwrap();
+        }
+    }
+
+    #[test]
+    fn request_serializes_minimally() {
+        let json = serde_json::to_value(minimal_request()).unwrap();
         assert_eq!(
             json,
             serde_json::json!({
                 "model": "qwen3",
                 "messages": [{"role": "user", "content": "hi"}],
                 "stream": false,
+            })
+        );
+    }
+
+    #[test]
+    fn tools_serialize_in_openai_style() {
+        let request = ChatRequest {
+            tools: Some(vec![Tool::function(
+                "get_weather",
+                "Get the current weather",
+                serde_json::json!({
+                    "type": "object",
+                    "properties": {"city": {"type": "string"}},
+                    "required": ["city"]
+                }),
+            )]),
+            ..minimal_request()
+        };
+        let json = serde_json::to_value(&request).unwrap();
+        assert_eq!(json["tools"][0]["type"], "function");
+        assert_eq!(json["tools"][0]["function"]["name"], "get_weather");
+        assert_eq!(
+            json["tools"][0]["function"]["parameters"]["required"][0],
+            "city"
+        );
+    }
+
+    #[test]
+    fn tool_calls_parse_and_are_extracted() {
+        let json = r#"{
+            "model": "qwen3",
+            "message": {
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [
+                    {"function": {"name": "get_weather", "arguments": {"city": "Stockholm"}}}
+                ]
+            },
+            "done": true,
+            "done_reason": "stop"
+        }"#;
+        let response: ChatResponse = serde_json::from_str(json).unwrap();
+        let calls = response.tool_calls();
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].function.name, "get_weather");
+        assert_eq!(calls[0].function.arguments["city"], "Stockholm");
+    }
+
+    #[test]
+    fn with_tool_results_extends_the_conversation() {
+        let response: ChatResponse = serde_json::from_str(
+            r#"{
+                "model": "qwen3",
+                "message": {
+                    "role": "assistant",
+                    "content": "",
+                    "tool_calls": [
+                        {"function": {"name": "get_weather", "arguments": {"city": "Stockholm"}}}
+                    ]
+                },
+                "done": true
+            }"#,
+        )
+        .unwrap();
+
+        let request = minimal_request()
+            .with_tool_results(&response, [("get_weather", r#"{"temperature_c": -3}"#)]);
+
+        assert_eq!(request.messages.len(), 3);
+        let json = serde_json::to_value(&request).unwrap();
+        // The assistant's tool_calls are echoed back verbatim.
+        assert_eq!(
+            json["messages"][1]["tool_calls"][0]["function"]["name"],
+            "get_weather"
+        );
+        assert_eq!(
+            json["messages"][2],
+            serde_json::json!({
+                "role": "tool",
+                "content": "{\"temperature_c\": -3}",
+                "tool_name": "get_weather",
             })
         );
     }
