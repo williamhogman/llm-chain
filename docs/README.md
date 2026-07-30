@@ -9,7 +9,7 @@
 
 ## Examples 💡
 
-To help you get started, here is an example demonstrating how to use `llm-chain`. You can find more examples in the [examples folder](/llm-chain-openai/examples) in the repository.
+To help you get started, here is an example demonstrating how to use `llm-chain`. You can find more examples in the [examples folder](/crates/llm-chain-openai/examples) in the repository.
 
 ```rust
 use llm_chain::{Parameters, traits::StepExt};
@@ -38,6 +38,7 @@ println!("{:?}", res);
 - **Hyperscaler front doors**: The same chains run against the clouds' managed AI surfaces — **AWS Bedrock** (the model-agnostic Converse API: Claude, Nova, Llama, Mistral and more behind one wire format), **Google Vertex AI** (project-scoped or Express Mode, same executor as Gemini) and **Azure OpenAI** (the OpenAI-compatible v1 surface with API-key or Microsoft Entra ID auth, same executor as OpenAI).
 - **Local models via llama.cpp**: Run LLaMA, Mistral, Qwen, Gemma and any other GGUF model fully offline, with optional GPU acceleration (CUDA, Metal, Vulkan).
 - **Tools**: Enhance your AI agents' capabilities by giving them access to various tools, such as running Bash commands or executing Python scripts, enabling more complex and powerful interactions.
+- **Testing**: `llm-chain-mock` ships a deterministic mock executor (echo, scripted responses, forced failures, call recording) for unit-testing chains without network access.
 - **Typed errors, no panics**: Formatting, execution and chain errors are all surfaced as typed `Result`s.
 - **Modern async**: Built on native `async fn` in traits — no `async-trait` macro overhead.
 - **Extensibility**: Designed with extensibility in mind, making it easy to integrate additional LLMs as the ecosystem grows.
@@ -139,7 +140,7 @@ let exec = llm_chain_gemini::generate_content::Executor::vertex("my-project", "e
 let exec = llm_chain_gemini::generate_content::Executor::vertex_express(api_key);
 ```
 
-Then, refer to the [documentation](https://docs.rs/llm-chain) and the examples ([OpenAI](/llm-chain-openai/examples), [Anthropic](/llm-chain-anthropic/examples), [Gemini](/llm-chain-gemini/examples), [Bedrock](/llm-chain-bedrock/examples), [Ollama](/llm-chain-ollama/examples)) to learn how to create prompt templates, chains, and more.
+Then, refer to the [documentation](https://docs.rs/llm-chain) and the examples ([OpenAI](/crates/llm-chain-openai/examples), [Anthropic](/crates/llm-chain-anthropic/examples), [Gemini](/crates/llm-chain-gemini/examples), [Bedrock](/crates/llm-chain-bedrock/examples), [Ollama](/crates/llm-chain-ollama/examples)) to learn how to create prompt templates, chains, and more.
 
 Upgrading from 0.1.x or 0.13.x? See the [migration guide](/docs/MIGRATION-0.14.md). Every release is documented in the [changelog](/CHANGELOG.md).
 

@@ -1,0 +1,9 @@
+{
+  "label": "Getting started tutorial",
+  "position": 1,
+  "link": {
+    "type": "generated-index",
+    "slug": "/getting-started-tutorial",
+    "description": "Install llm-chain, generate your first output, and build multi-step chains."
+  }
+}

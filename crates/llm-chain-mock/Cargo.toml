@@ -1,0 +1,27 @@
+[package]
+name = "llm-chain-mock"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Use `llm-chain` with a mock backend. Useful for testing chains without hitting a real model."
+license.workspace = true
+keywords = ["llm", "langchain", "chain", "mock", "testing"]
+categories = ["science", "development-tools::testing"]
+authors.workspace = true
+repository.workspace = true
+
+[features]
+default = ["serialization"]
+serialization = ["llm-chain/serialization", "dep:serde"]
+
+[dependencies]
+llm-chain.workspace = true
+serde = { workspace = true, optional = true }
+thiserror.workspace = true
+
+[dev-dependencies]
+serde_yaml_ng.workspace = true
+tokio = { workspace = true, features = ["macros", "rt"] }
+
+[lints]
+workspace = true

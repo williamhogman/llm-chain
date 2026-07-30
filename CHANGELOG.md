@@ -70,6 +70,12 @@ for a step-by-step upgrade guide from both 0.1.x and 0.13.x.
   `qwen3`); `Think` levels for reasoning models; `Format` for JSON mode and
   full JSON-schema constraints; `keep_alive`; generation timings merged
   across chain steps.
+- **`llm-chain-mock`** — deterministic in-process executor for testing
+  chains without network access: Echo, Scripted and Failing behaviours, with
+  every executed prompt recorded and available via `Executor::calls()`.
+  (Rebuilt on the 0.14 architecture; the 0.13-era crate of the same name is
+  not an ancestor.)
+
 
 #### Core (`llm-chain`)
 
@@ -91,8 +97,11 @@ for a step-by-step upgrade guide from both 0.1.x and 0.13.x.
   the o-series — plus any custom/fine-tuned id. New `Options`
   (`temperature`, `top_p`, `max_completion_tokens`, `reasoning_effort`,
   `verbosity`, `response_format`). Crate-owned `Role` enum including
-  `Developer` for reasoning models. `Executor::with_api_key`. Token usage
-  merged across combined outputs.
+  `Developer` for reasoning models. `Executor::with_api_key`,
+  `with_api_key_and_org`, and `with_base_url` for OpenAI-compatible servers
+  (vLLM, OpenRouter, local proxies). Token usage merged across combined
+  outputs.
+
 - **Azure OpenAI**: `AzureExecutor` / `AzureV1Config` targeting the
   OpenAI-compatible `/openai/v1` surface — no `api-version` pinning — with
   both `api-key` and Microsoft Entra ID bearer auth.
@@ -110,6 +119,14 @@ for a step-by-step upgrade guide from both 0.1.x and 0.13.x.
   MSRV (1.85) verification + rustdoc with `-D warnings`.
 - Tag-triggered release workflow publishing all crates to crates.io in
   dependency order.
+- Workspace reorganized into the upstream `crates/*` layout; `Cargo.lock`
+  committed; `SECURITY.md` and a cargo-deny v2 `deny.toml` added and
+  enforced by a CI audit job (advisories, bans, licenses, sources).
+- Documentation website (`website/`, docs.llm-chain.xyz) ported to
+  Docusaurus 3 (React 19, MDX v3): every docs page rewritten for the 0.14
+  API, a new Providers page, the historical blog preserved plus a 0.14
+  release post, and GitHub Pages deploy / PR-check workflows.
+
 
 ### Changed
 
@@ -140,9 +157,10 @@ for a step-by-step upgrade guide from both 0.1.x and 0.13.x.
 - Relative to the 0.13.x line (not ancestors of this release, see the
   lineage note): the `prompt!`/`executor!` macros, unified `Options` map,
   SSE streaming, conversation chains, and the `llm-chain-local`,
-  `llm-chain-mock`, `llm-chain-macros`, `llm-chain-sagemaker-endpoint`,
+  `llm-chain-macros`, `llm-chain-sagemaker-endpoint`,
   `llm-chain-gemma(-sys)`, `llm-chain-qdrant`, `llm-chain-milvus` and
-  `llm-chain-hnsw` crates.
+  `llm-chain-hnsw` crates. (`llm-chain-mock` is carried over, rebuilt on the
+  0.14 architecture.)
 
 ## [0.3.0]–[0.13.0] - 2023-2024
 

@@ -1,0 +1,9 @@
+{
+  "label": "Chains",
+  "position": 2,
+  "link": {
+    "type": "generated-index",
+    "slug": "/chains",
+    "description": "Patterns for applying LLMs to multi-step tasks."
+  }
+}

@@ -183,7 +183,8 @@ Expect a rewrite of call sites rather than a mechanical migration:
 | Unified `Options` map (`OptionsBuilder`) | Typed per-provider `Options` builders (compile-time checked) |
 | `chains::conversation::Chain` | Not carried over — model a conversation as a sequential chain, or file an issue |
 | SSE streaming (`stream` option) | Not yet available in 0.14.0 (planned) |
-| `llm-chain-local`, `llm-chain-mock` | Not carried over — `llm-chain-llama` (GGUF) covers local inference; mock executors live in each crate's test suite |
+| `llm-chain-mock` | Carried over — rebuilt on the 0.14 architecture: Echo, Scripted and Failing behaviours with call recording (`Executor::calls()`) |
+| `llm-chain-local` | Not carried over — `llm-chain-llama` (GGUF) covers local inference |
 | `llm-chain-qdrant` / `-milvus` / `-hnsw` vector stores | Not carried over — use the vector-store clients directly |
 | `llm-chain-sagemaker-endpoint` | Superseded by `llm-chain-bedrock` (Converse API) |
 | `llm-chain-gemma(-sys)` | Superseded by `llm-chain-llama` (Gemma GGUF builds) or `llm-chain-gemini` |
