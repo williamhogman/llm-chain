@@ -1,0 +1,40 @@
+use llm_chain::PromptTemplateError;
+use thiserror::Error;
+
+/// An error that occurred while formatting a chat prompt into a chat API request.
+#[derive(Debug, Error)]
+pub enum FormatError {
+    /// The underlying prompt template failed to format.
+    #[error(transparent)]
+    Template(#[from] PromptTemplateError),
+}
+
+/// An error that occurred while executing a request against an Ollama server.
+#[derive(Debug, Error)]
+pub enum OllamaError {
+    /// The server could not be reached at all.
+    ///
+    /// For a local setup this almost always means the daemon is not running —
+    /// start it with `ollama serve` (or the desktop app).
+    #[error("could not reach the Ollama server at {url} — is `ollama serve` running? ({source})")]
+    Connection {
+        /// The base URL that was tried.
+        url: String,
+        /// The underlying connection error.
+        source: reqwest::Error,
+    },
+    /// The HTTP request failed (TLS, timeout, or invalid response body).
+    #[error(transparent)]
+    Http(#[from] reqwest::Error),
+    /// The server returned an error response.
+    ///
+    /// A 404 with a "model not found" message means the model has not been
+    /// pulled yet — run `ollama pull <model>` first.
+    #[error("ollama api error ({status}): {message}")]
+    Api {
+        /// The HTTP status code.
+        status: u16,
+        /// The error message, e.g. `model 'nope' not found, try pulling it first`.
+        message: String,
+    },
+}
