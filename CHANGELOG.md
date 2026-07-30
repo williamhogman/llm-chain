@@ -6,14 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and all crates in the workspace share a single version number and adhere to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.0] - 2026-07-30
+## [0.14.0] - 2026-07-30
 
-A ground-up modernization of the entire workspace — the first release since
-0.1.4 (April 2023). Every crate was brought up to the current state of the
-Rust and LLM ecosystems, and five new provider crates were added.
+A ground-up modernization of the entire workspace. Every crate was brought up
+to the current state of the Rust and LLM ecosystems, and five new provider
+crates were added.
 
-**Breaking release.** See [`docs/MIGRATION-0.2.md`](docs/MIGRATION-0.2.md) for
-a step-by-step upgrade guide from 0.1.x.
+**Lineage note.** This release was developed from the April 2023 tree
+(commit `51cce6b`, the 0.1.x line) and is a from-scratch replacement of that
+architecture. The 0.3.0–0.13.0 versions published from upstream's divergent
+2023–2024 line (last publish: 0.13.0, November 2023; last commit: October
+2024) are not ancestors of this release, and their additions (streaming,
+vector stores, the `prompt!`/`executor!` macros) are not carried over — see
+the changelog entry for that line below. 0.14.0 is numbered above 0.13.0 so
+crates.io resolution moves forward.
+
+**Breaking release.** See [`docs/MIGRATION-0.14.md`](docs/MIGRATION-0.14.md)
+for a step-by-step upgrade guide from both 0.1.x and 0.13.x.
 
 ### Highlights
 
@@ -128,10 +137,27 @@ a step-by-step upgrade guide from 0.1.x.
 - `dynfmt` dependency (custom fallible formatter).
 - `llm-chain-llama-sys` vendored bindings and the `llama.cpp` submodule.
 - OpenAI `seed` request option (deprecated upstream).
+- Relative to the 0.13.x line (not ancestors of this release, see the
+  lineage note): the `prompt!`/`executor!` macros, unified `Options` map,
+  SSE streaming, conversation chains, and the `llm-chain-local`,
+  `llm-chain-mock`, `llm-chain-macros`, `llm-chain-sagemaker-endpoint`,
+  `llm-chain-gemma(-sys)`, `llm-chain-qdrant`, `llm-chain-milvus` and
+  `llm-chain-hnsw` crates.
+
+## [0.3.0]–[0.13.0] - 2023-2024
+
+Published from upstream's divergent 2023–2024 line (crates/* layout,
+`prompt!`/`executor!` macros, unified options, streaming, vector stores,
+gemma/sagemaker/local drivers). Development stopped in October 2024; the
+last published version is 0.13.0 (November 2023). See the upstream git
+history for details. These versions are not ancestors of 0.14.0.
 
 ## [0.1.4] - 2023-04-10
 
-Last release of the original 2023 line. See the git history for details.
+Last release of the original 0.1.x line, from which 0.14.0 descends. See the
+git history for details.
 
-[0.2.0]: https://github.com/sobelio/llm-chain/compare/v0.1.4...v0.2.0
+[0.14.0]: https://github.com/sobelio/llm-chain/compare/v0.1.4...v0.14.0
+[0.13.0]: https://github.com/sobelio/llm-chain/releases/tag/v0.13.0
+[0.3.0]: https://github.com/sobelio/llm-chain/releases/tag/v0.3.0
 [0.1.4]: https://github.com/sobelio/llm-chain/releases/tag/v0.1.4
