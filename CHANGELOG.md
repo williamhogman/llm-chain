@@ -40,6 +40,9 @@ for a step-by-step upgrade guide from both 0.1.x and 0.13.x.
 - **Hyperscaler front doors** — Azure OpenAI (OpenAI-compatible v1 surface),
   Google Vertex AI (project-scoped and Express Mode) and AWS Bedrock
   (Converse API).
+- **First-party tool calling** — native function/tool-use support on every
+  HTTP provider, plus a provider-neutral bridge in `llm-chain-tools`
+  (`tool_schemas()` / `invoke_json()`).
 - **Credential hygiene** — every API key and token is held as
   `secrecy::SecretString`: redacted from `Debug`, zeroized on drop.
 
@@ -105,6 +108,17 @@ for a step-by-step upgrade guide from both 0.1.x and 0.13.x.
 - **Azure OpenAI**: `AzureExecutor` / `AzureV1Config` targeting the
   OpenAI-compatible `/openai/v1` surface — no `api-version` pinning — with
   both `api-key` and Microsoft Entra ID bearer auth.
+- **Native tool calling on every HTTP provider**: OpenAI function tools,
+  Anthropic `tool_use`/`tool_result` content blocks, Gemini function
+  declarations, Bedrock Converse `toolConfig` and Ollama tools. Each driver
+  gains `Options::with_tools` (and `with_tool_choice` where the API has one),
+  response accessors for the calls the model made (`function_calls`,
+  `tool_uses`, …) and continuation helpers for sending results back
+  (`tool_result_message`, `with_tool_results`, `Message::tool`, …).
+  `llm-chain-tools` bridges any `ToolCollection` into these APIs:
+  `tool_schemas()` generates a JSON Schema per tool and `invoke_json()`
+  executes the calls the model makes. Runnable `native_agent` example and a
+  new website docs page.
 - **All HTTP providers**: `.status()` and `.is_rate_limit()` on error types
   for uniform retry/backoff handling across providers (429s, Anthropic
   `overloaded_error`, Gemini `RESOURCE_EXHAUSTED`, Bedrock throttling).
@@ -145,7 +159,9 @@ for a step-by-step upgrade guide from both 0.1.x and 0.13.x.
   GPU offload, and `cuda`/`metal`/`vulkan` cargo features.
 - **`llm-chain-tools`**: `Tool::invoke` returns `Result<Value, ToolError>`;
   robust fenced-code-block extraction from model output;
-  `gen_invoke_function!` to cut per-tool boilerplate.
+  `gen_invoke_function!` to cut per-tool boilerplate. The `description`
+  module is now public, and `ToolSchema` / `ToolCollection::tool_schemas` /
+  `ToolCollection::invoke_json` bridge collections into native tool calling.
 - `thiserror` upgraded 1 → 2 across the workspace.
 
 ### Removed

@@ -114,6 +114,15 @@ llama.cpp FFI with a git submodule) are deprecated or unmaintained.
 **Tools (`llm-chain-tools`)**
 - Fallible `Tool` trait with `ToolError`; robust fenced-code-block
   extraction; `gen_invoke_function!` macro.
+- **First-party tool calling** across every HTTP provider: native tool
+  definitions (`Options::with_tools` / `with_tool_choice`), response
+  accessors for the calls the model made, and continuation helpers for
+  sending results back. `ToolCollection::tool_schemas()` generates a JSON
+  Schema per tool for the native definitions and `invoke_json()` executes the
+  calls — see the runnable `native_agent` example and the new "Tool calling"
+  docs page.
+
+
 
 
 **Security**
