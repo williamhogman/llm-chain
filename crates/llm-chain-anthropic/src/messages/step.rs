@@ -141,6 +141,8 @@ impl traits::Step for Step {
             stop_sequences: None,
             thinking: None,
             effort: None,
+            tools: None,
+            tool_choice: None,
         };
         self.options.apply(&mut request);
         Ok(request)
@@ -193,7 +195,7 @@ mod tests {
         assert_eq!(request.model, "claude-sonnet-5");
         assert_eq!(request.system.as_deref(), Some("be brief"));
         assert_eq!(request.messages.len(), 1);
-        assert_eq!(request.messages[0].content, "hi there");
+        assert_eq!(request.messages[0].content.as_text(), Some("hi there"));
         assert_eq!(request.temperature, Some(0.1));
         assert_eq!(request.max_tokens, 64);
     }

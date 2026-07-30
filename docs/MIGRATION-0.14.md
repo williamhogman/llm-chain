@@ -162,6 +162,12 @@ fn invoke(&self, input: Value) -> Value;
 fn invoke(&self, input: Value) -> Result<Value, ToolError>;
 ```
 
+New in 0.14: tools can also be declared through each provider's **native
+tool-calling API** instead of YAML prompting —
+`ToolCollection::tool_schemas()` generates a JSON Schema per tool and
+`ToolCollection::invoke_json()` executes the calls the model makes. See the
+`native_agent` example and the website's *Tool calling* page.
+
 ## New providers
 
 Anthropic, Gemini (+ Vertex AI), Bedrock and Ollama are new crates that

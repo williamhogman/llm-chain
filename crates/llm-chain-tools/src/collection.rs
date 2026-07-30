@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use crate::schema::ToolSchema;
 use crate::tool::{Tool, ToolError};
 
 /// A collection of tools that can be invoked by name from model output.
@@ -42,6 +43,32 @@ impl ToolCollection {
     pub fn describe(&self) -> Result<String, ToolError> {
         let des: Vec<_> = self.tools.iter().map(|t| t.description()).collect();
         Ok(serde_yaml_ng::to_string(&des)?)
+    }
+
+    /// Describes all the tools as provider-neutral [`ToolSchema`]s (name,
+    /// description, JSON Schema), for declaring them natively to providers
+    /// with first-party tool calling.
+    pub fn tool_schemas(&self) -> Vec<ToolSchema> {
+        self.tools
+            .iter()
+            .map(|t| ToolSchema::from(t.description()))
+            .collect()
+    }
+
+    /// Invokes the named tool with JSON input and returns JSON output,
+    /// bridging to the YAML-native [`Tool`] interface.
+    ///
+    /// This is the execution half of native tool calling: pass the arguments
+    /// object from the model's tool call, send the returned JSON back with the
+    /// provider's continuation helper.
+    pub fn invoke_json(
+        &self,
+        name: &str,
+        input: &serde_json::Value,
+    ) -> Result<serde_json::Value, ToolError> {
+        let yaml_input = serde_yaml_ng::to_value(input)?;
+        let output = self.invoke(name, &yaml_input)?;
+        Ok(serde_json::to_value(&output)?)
     }
 }
 

@@ -14,6 +14,16 @@ impl FormatPart {
             purpose: purpose.to_string(),
         }
     }
+
+    /// The parameter name.
+    pub fn key(&self) -> &str {
+        &self.key
+    }
+
+    /// What the parameter is for.
+    pub fn purpose(&self) -> &str {
+        &self.purpose
+    }
 }
 
 impl<K: Into<String>, P: Into<String>> From<(K, P)> for FormatPart {
@@ -29,6 +39,11 @@ pub struct Format {
 impl Format {
     pub fn new(parts: Vec<FormatPart>) -> Self {
         Format { parts }
+    }
+
+    /// The parameters making up this format.
+    pub fn parts(&self) -> &[FormatPart] {
+        &self.parts
     }
 }
 
@@ -83,5 +98,54 @@ impl ToolDescription {
             input_format,
             output_format,
         }
+    }
+
+    /// The name the tool is invoked by.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// What the tool does.
+    pub fn description(&self) -> &str {
+        &self.description
+    }
+
+    /// When the tool should be used.
+    pub fn description_context(&self) -> &str {
+        &self.description_context
+    }
+
+    /// The description and its usage context joined into one sentence,
+    /// suitable for a native tool definition.
+    pub fn full_description(&self) -> String {
+        if self.description_context.is_empty() {
+            self.description.clone()
+        } else {
+            format!("{} {}", self.description, self.description_context)
+        }
+    }
+
+    /// The tool's input format as a [JSON Schema](https://json-schema.org/)
+    /// object, suitable for a native tool definition.
+    ///
+    /// Every parameter maps to a required string property, matching how tools
+    /// in this crate describe their inputs. The schema deliberately omits
+    /// `additionalProperties` so it is accepted verbatim by every provider
+    /// (some reject unknown schema keywords).
+    pub fn input_schema(&self) -> serde_json::Value {
+        let mut properties = serde_json::Map::new();
+        let mut required = Vec::new();
+        for part in self.input_format.parts() {
+            properties.insert(
+                part.key().to_string(),
+                serde_json::json!({"type": "string", "description": part.purpose()}),
+            );
+            required.push(serde_json::Value::String(part.key().to_string()));
+        }
+        serde_json::json!({
+            "type": "object",
+            "properties": properties,
+            "required": required,
+        })
     }
 }

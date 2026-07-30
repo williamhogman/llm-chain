@@ -1,7 +1,10 @@
 #[cfg(feature = "serialization")]
 use serde::{Deserialize, Serialize};
 
-use super::types::{GenerateContentRequest, GenerationConfig, ThinkingConfig, ThinkingLevel};
+use super::types::{
+    FunctionCallingConfig, FunctionCallingMode, FunctionDeclaration, GenerateContentRequest,
+    GenerationConfig, ThinkingConfig, ThinkingLevel, Tool, ToolConfig,
+};
 
 /// Per-step request options for the Gemini API.
 ///
@@ -81,6 +84,18 @@ pub struct Options {
         serde(skip_serializing_if = "Option::is_none")
     )]
     response_mime_type: Option<String>,
+    /// Functions the model may call.
+    #[cfg_attr(
+        feature = "serialization",
+        serde(skip_serializing_if = "Option::is_none")
+    )]
+    tools: Option<Vec<FunctionDeclaration>>,
+    /// How the model chooses among the functions.
+    #[cfg_attr(
+        feature = "serialization",
+        serde(skip_serializing_if = "Option::is_none")
+    )]
+    function_calling_mode: Option<FunctionCallingMode>,
 }
 
 impl Options {
@@ -163,6 +178,27 @@ impl Options {
         self
     }
 
+    /// Gives the model functions to call.
+    ///
+    /// When the model calls one, the response carries function-call parts (see
+    /// [`GenerateContentResponse::function_calls`](super::types::GenerateContentResponse::function_calls));
+    /// run the functions and continue with
+    /// [`GenerateContentRequest::with_function_responses`](super::types::GenerateContentRequest::with_function_responses).
+    ///
+    /// Use [`ToolCollection::tool_specs`](https://docs.rs/llm-chain-tools) to
+    /// bridge an existing `llm-chain-tools` collection into declarations.
+    pub fn with_tools<I: IntoIterator<Item = FunctionDeclaration>>(mut self, tools: I) -> Self {
+        self.tools = Some(tools.into_iter().collect());
+        self
+    }
+
+    /// Controls how the model chooses among the functions (default:
+    /// [`FunctionCallingMode::Auto`] when functions are present).
+    pub fn with_function_calling_mode(mut self, mode: FunctionCallingMode) -> Self {
+        self.function_calling_mode = Some(mode);
+        self
+    }
+
     /// Applies every set option to a request.
     pub(crate) fn apply(&self, request: &mut GenerateContentRequest) {
         let thinking_config = if self.thinking_level.is_some()
@@ -191,6 +227,17 @@ impl Options {
         } else {
             Some(config)
         };
+        request.tools = self.tools.clone().map(|function_declarations| {
+            vec![Tool {
+                function_declarations,
+            }]
+        });
+        request.tool_config = self.function_calling_mode.map(|mode| ToolConfig {
+            function_calling_config: Some(FunctionCallingConfig {
+                mode: Some(mode),
+                allowed_function_names: None,
+            }),
+        });
     }
 }
 
@@ -205,6 +252,8 @@ mod tests {
             contents: vec![Content::text(Role::User, "hi")],
             system_instruction: None,
             generation_config: None,
+            tools: None,
+            tool_config: None,
         }
     }
 
@@ -283,6 +332,34 @@ mod tests {
     fn is_default_detects_empty_options() {
         assert!(Options::new().is_default());
         assert!(!Options::new().with_temperature(0.1).is_default());
+    }
+
+    #[test]
+    fn tools_are_applied_to_the_request() {
+        let mut request = base_request();
+        let declaration = FunctionDeclaration::new(
+            "get_weather",
+            "Get the current weather for a city.",
+            serde_json::json!({"type": "object", "properties": {"city": {"type": "string"}}}),
+        );
+        Options::new()
+            .with_tools([declaration.clone()])
+            .with_function_calling_mode(FunctionCallingMode::Any)
+            .apply(&mut request);
+        assert_eq!(
+            request.tools,
+            Some(vec![Tool {
+                function_declarations: vec![declaration]
+            }])
+        );
+        assert_eq!(
+            request
+                .tool_config
+                .as_ref()
+                .and_then(|config| config.function_calling_config.as_ref())
+                .and_then(|config| config.mode),
+            Some(FunctionCallingMode::Any)
+        );
     }
 
     #[cfg(feature = "serialization")]

@@ -1,5 +1,6 @@
 use async_openai::types::chat::{
-    CreateChatCompletionRequestArgs, ReasoningEffort, ResponseFormat, StopConfiguration, Verbosity,
+    ChatCompletionToolChoiceOption, ChatCompletionTools, CreateChatCompletionRequestArgs,
+    ReasoningEffort, ResponseFormat, StopConfiguration, Verbosity,
 };
 #[cfg(feature = "serialization")]
 use serde::{Deserialize, Serialize};
@@ -83,6 +84,24 @@ pub struct Options {
         serde(skip_serializing_if = "Option::is_none")
     )]
     response_format: Option<ResponseFormat>,
+    /// Tools the model may call.
+    #[cfg_attr(
+        feature = "serialization",
+        serde(skip_serializing_if = "Option::is_none")
+    )]
+    tools: Option<Vec<ChatCompletionTools>>,
+    /// How the model chooses among the tools.
+    #[cfg_attr(
+        feature = "serialization",
+        serde(skip_serializing_if = "Option::is_none")
+    )]
+    tool_choice: Option<ChatCompletionToolChoiceOption>,
+    /// Whether the model may call several tools in parallel.
+    #[cfg_attr(
+        feature = "serialization",
+        serde(skip_serializing_if = "Option::is_none")
+    )]
+    parallel_tool_calls: Option<bool>,
 }
 
 impl Options {
@@ -152,6 +171,33 @@ impl Options {
         self
     }
 
+    /// Gives the model tools to call; build them with
+    /// [`function_tool`](super::function_tool).
+    ///
+    /// When the model calls one, the response message's `tool_calls` is
+    /// non-empty (see [`function_calls`](super::function_calls)); answer with
+    /// [`assistant_tool_calls_message`](super::assistant_tool_calls_message)
+    /// and [`tool_result_message`](super::tool_result_message)s, then execute
+    /// the request again.
+    pub fn with_tools<I: IntoIterator<Item = ChatCompletionTools>>(mut self, tools: I) -> Self {
+        self.tools = Some(tools.into_iter().collect());
+        self
+    }
+
+    /// Controls how the model chooses among the tools (default: `auto` when
+    /// tools are present).
+    pub fn with_tool_choice(mut self, tool_choice: ChatCompletionToolChoiceOption) -> Self {
+        self.tool_choice = Some(tool_choice);
+        self
+    }
+
+    /// Sets whether the model may call several tools in parallel (the API
+    /// default is `true`).
+    pub fn with_parallel_tool_calls(mut self, parallel_tool_calls: bool) -> Self {
+        self.parallel_tool_calls = Some(parallel_tool_calls);
+        self
+    }
+
     /// Applies every set option to a request builder.
     pub(crate) fn apply(&self, args: &mut CreateChatCompletionRequestArgs) {
         if let Some(temperature) = self.temperature {
@@ -180,6 +226,15 @@ impl Options {
         }
         if let Some(response_format) = &self.response_format {
             args.response_format(response_format.clone());
+        }
+        if let Some(tools) = &self.tools {
+            args.tools(tools.clone());
+        }
+        if let Some(tool_choice) = &self.tool_choice {
+            args.tool_choice(tool_choice.clone());
+        }
+        if let Some(parallel_tool_calls) = self.parallel_tool_calls {
+            args.parallel_tool_calls(parallel_tool_calls);
         }
     }
 }
@@ -225,6 +280,33 @@ mod tests {
     }
 
     #[test]
+    fn tools_are_applied_to_the_request() {
+        let tool = crate::chat::function_tool(
+            "get_weather",
+            "Get the current weather for a city.",
+            serde_json::json!({"type": "object", "properties": {"city": {"type": "string"}}}),
+        );
+        let mut args = CreateChatCompletionRequestArgs::default();
+        args.model("gpt-5.6-terra").messages(vec![]);
+        Options::new()
+            .with_tools([tool.clone()])
+            .with_tool_choice(ChatCompletionToolChoiceOption::Mode(
+                async_openai::types::chat::ToolChoiceOptions::Required,
+            ))
+            .with_parallel_tool_calls(false)
+            .apply(&mut args);
+        let request = args.build().unwrap();
+        assert_eq!(request.tools, Some(vec![tool]));
+        assert_eq!(request.parallel_tool_calls, Some(false));
+        assert!(matches!(
+            request.tool_choice,
+            Some(ChatCompletionToolChoiceOption::Mode(
+                async_openai::types::chat::ToolChoiceOptions::Required
+            ))
+        ));
+    }
+
+    #[test]
     fn is_default_detects_empty_options() {
         assert!(Options::new().is_default());
         assert!(!Options::new().with_temperature(0.1).is_default());
@@ -236,6 +318,19 @@ mod tests {
         let options = Options::new()
             .with_temperature(0.5)
             .with_reasoning_effort(ReasoningEffort::High);
+        let yaml = serde_yaml_ng::to_string(&options).unwrap();
+        let parsed: Options = serde_yaml_ng::from_str(&yaml).unwrap();
+        assert_eq!(parsed, options);
+    }
+
+    #[cfg(feature = "serialization")]
+    #[test]
+    fn tool_options_round_trip_through_yaml() {
+        let options = Options::new().with_tools([crate::chat::function_tool(
+            "get_weather",
+            "Get the current weather for a city.",
+            serde_json::json!({"type": "object"}),
+        )]);
         let yaml = serde_yaml_ng::to_string(&options).unwrap();
         let parsed: Options = serde_yaml_ng::from_str(&yaml).unwrap();
         assert_eq!(parsed, options);

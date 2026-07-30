@@ -133,6 +133,8 @@ impl traits::Step for Step {
             contents: self.prompt.format(parameters)?,
             system_instruction: self.prompt.format_system(parameters)?.map(Content::system),
             generation_config: None,
+            tools: None,
+            tool_config: None,
         };
         self.options.apply(&mut request);
         Ok(request)

@@ -26,14 +26,27 @@
 //! ## Modules
 //!
 //! - `tools`: A submodule that provides a variety of pre-defined tools.
+//! - `description`: Types for describing a tool's purpose and formats.
+//!
+//! ## Native tool calling
+//!
+//! Providers with first-party tool calling (OpenAI, Anthropic, Gemini,
+//! Bedrock, Ollama) take a name, a description and a JSON Schema per tool.
+//! [`ToolCollection::tool_schemas`] produces exactly those as [`ToolSchema`]s,
+//! and [`ToolCollection::invoke_json`] runs a tool with the JSON arguments the
+//! model supplied — see the [`schema`](crate::ToolSchema) docs for the
+//! per-provider mapping.
 
 mod collection;
-mod description;
+pub mod description;
+mod schema;
 mod tool;
 pub mod tools;
 use llm_chain::PromptTemplate;
 
 pub use crate::collection::ToolCollection;
+pub use description::{Describe, Format, FormatPart, ToolDescription};
+pub use schema::ToolSchema;
 pub use tool::{Tool, ToolError};
 
 /// Creates a prompt that indicates the model should use the tools provided.

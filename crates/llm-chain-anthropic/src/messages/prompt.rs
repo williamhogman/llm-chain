@@ -31,7 +31,7 @@ impl MessagePromptTemplate {
     pub fn format(&self, parameters: &Parameters) -> Result<Message, FormatError> {
         Ok(Message {
             role: self.role,
-            content: self.content.format(parameters)?,
+            content: self.content.format(parameters)?.into(),
         })
     }
 }
@@ -137,7 +137,7 @@ mod tests {
         let messages = template.format(&parameters).unwrap();
         assert_eq!(messages.len(), 1);
         assert_eq!(messages[0].role, Role::User);
-        assert_eq!(messages[0].content, "hello brief");
+        assert_eq!(messages[0].content.as_text(), Some("hello brief"));
     }
 
     #[test]

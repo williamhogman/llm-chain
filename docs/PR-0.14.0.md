@@ -114,6 +114,15 @@ llama.cpp FFI with a git submodule) are deprecated or unmaintained.
 **Tools (`llm-chain-tools`)**
 - Fallible `Tool` trait with `ToolError`; robust fenced-code-block
   extraction; `gen_invoke_function!` macro.
+- **First-party tool calling** across every HTTP provider: native tool
+  definitions (`Options::with_tools` / `with_tool_choice`), response
+  accessors for the calls the model made, and continuation helpers for
+  sending results back. `ToolCollection::tool_schemas()` generates a JSON
+  Schema per tool for the native definitions and `invoke_json()` executes the
+  calls — see the runnable `native_agent` example and the new "Tool calling"
+  docs page.
+
+
 
 
 **Security**
@@ -144,10 +153,10 @@ llama.cpp FFI with a git submodule) are deprecated or unmaintained.
 
 ### Numbers
 
-- Against the `51cce6b` fork point: 210 files changed, ~34,400 insertions,
-  ~2,500 deletions (including the ported website and the committed
+- Against the `51cce6b` fork point: 215 files changed, ~36,900 insertions,
+  ~2,600 deletions (including the ported website and the committed
   `Cargo.lock` / `package-lock.json` lockfiles).
-- 23 test suites, 219 unit/integration/doc tests — including mock-API wire
+- 23 test suites, 255 unit/integration/doc tests — including mock-API wire
   format suites for Anthropic/Gemini/Bedrock/Ollama (no API keys needed) and
   a real GGUF end-to-end inference test.
 

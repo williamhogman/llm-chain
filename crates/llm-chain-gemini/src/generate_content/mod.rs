@@ -22,6 +22,8 @@ pub use options::Options;
 pub use prompt::{ChatPromptTemplate, MessagePromptTemplate};
 pub use step::{Model, Step};
 pub use types::{
-    Candidate, Content, FinishReason, GenerateContentRequest, GenerateContentResponse,
-    GenerationConfig, Part, PromptFeedback, Role, ThinkingConfig, ThinkingLevel, UsageMetadata,
+    Candidate, Content, FinishReason, FunctionCall, FunctionCallingConfig, FunctionCallingMode,
+    FunctionDeclaration, FunctionResponse, GenerateContentRequest, GenerateContentResponse,
+    GenerationConfig, Part, PromptFeedback, Role, ThinkingConfig, ThinkingLevel, Tool, ToolConfig,
+    UsageMetadata,
 };

@@ -18,6 +18,6 @@ pub use options::{DEFAULT_MAX_TOKENS, Options};
 pub use prompt::{ChatPromptTemplate, MessagePromptTemplate};
 pub use step::{Model, Step};
 pub use types::{
-    ContentBlock, Effort, Message, MessagesRequest, MessagesResponse, Role, StopReason, Thinking,
-    Usage,
+    ContentBlock, Effort, Message, MessageContent, MessagesRequest, MessagesResponse, Role,
+    StopReason, Thinking, ToolChoice, ToolDefinition, ToolResult, ToolUse, Usage,
 };

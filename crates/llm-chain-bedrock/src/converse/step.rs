@@ -172,6 +172,7 @@ impl traits::Step for Step {
                 .map(|text| vec![SystemContentBlock { text }]),
             inference_config: None,
             additional_model_request_fields: None,
+            tool_config: None,
         };
         self.options.apply(&mut request);
         Ok(request)

@@ -137,6 +137,7 @@ impl traits::Step for Step {
             think: None,
             format: None,
             keep_alive: None,
+            tools: None,
             options: ModelOptions::default(),
         };
         self.options.apply(&mut request);

@@ -33,8 +33,9 @@ fn main() {
 
 ## Features 🌟
 
-- **Tool management**: Easily create and integrated a collection of tools that LLMs can use to perform various tasks.
-- **Prompt integration**: Seamlessly integrate tool descriptions into LLM prompts for more effective interactions.
+- **Native tool calling**: Bridge any `ToolCollection` into the first-party tool-calling APIs of OpenAI, Anthropic, Gemini, Bedrock and Ollama — `tool_schemas()` generates a JSON Schema per tool, `invoke_json()` runs the calls the model makes (see the `native_agent` example).
+- **Prompt integration**: Or describe the tools as YAML in the prompt for models without tool training, and parse replies with `process_chat_input`.
+- **Tool management**: Easily create and integrate a collection of tools that LLMs can use to perform various tasks.
 - **Pre-defined tools**: A submodule providing a variety of pre-defined tools for common tasks, ready for use.
 - **Extensibility**: Designed with extensibility in mind, making it easy to integrate additional tools as needed.
 

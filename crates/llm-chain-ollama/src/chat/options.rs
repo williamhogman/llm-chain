@@ -1,7 +1,7 @@
 #[cfg(feature = "serialization")]
 use serde::{Deserialize, Serialize};
 
-use super::types::{ChatRequest, Format, Think};
+use super::types::{ChatRequest, Format, Think, Tool};
 
 /// Per-step request options for Ollama's chat API.
 ///
@@ -99,6 +99,12 @@ pub struct Options {
         serde(skip_serializing_if = "Option::is_none")
     )]
     keep_alive: Option<String>,
+    /// Tools the model may call.
+    #[cfg_attr(
+        feature = "serialization",
+        serde(skip_serializing_if = "Option::is_none")
+    )]
+    tools: Option<Vec<Tool>>,
 }
 
 impl Options {
@@ -201,6 +207,31 @@ impl Options {
         self
     }
 
+    /// Declares tools the model may call (models with tool support, e.g.
+    /// qwen3 or gpt-oss).
+    ///
+    /// When the model decides to call one, the calls are available via
+    /// [`ChatResponse::tool_calls`](super::ChatResponse::tool_calls); answer
+    /// them with [`ChatRequest::with_tool_results`](super::ChatRequest::with_tool_results).
+    ///
+    /// ```
+    /// use llm_chain_ollama::chat::{Options, Tool};
+    ///
+    /// let options = Options::new().with_tools([Tool::function(
+    ///     "get_weather",
+    ///     "Get the current weather in a city",
+    ///     serde_json::json!({
+    ///         "type": "object",
+    ///         "properties": {"city": {"type": "string"}},
+    ///         "required": ["city"]
+    ///     }),
+    /// )]);
+    /// ```
+    pub fn with_tools(mut self, tools: impl IntoIterator<Item = Tool>) -> Self {
+        self.tools = Some(tools.into_iter().collect());
+        self
+    }
+
     /// Applies every set option to a request.
     pub(crate) fn apply(&self, request: &mut ChatRequest) {
         request.options.temperature = self.temperature;
@@ -215,6 +246,7 @@ impl Options {
         request.think = self.think;
         request.format = self.format.clone();
         request.keep_alive = self.keep_alive.clone();
+        request.tools = self.tools.clone();
     }
 }
 
@@ -231,6 +263,7 @@ mod tests {
             think: None,
             format: None,
             keep_alive: None,
+            tools: None,
             options: ModelOptions::default(),
         }
     }
@@ -268,6 +301,20 @@ mod tests {
     }
 
     #[test]
+    fn tools_are_applied_to_the_request() {
+        let mut request = base_request();
+        let tool = Tool::function(
+            "get_weather",
+            "Get the weather",
+            serde_json::json!({"type": "object"}),
+        );
+        Options::new()
+            .with_tools([tool.clone()])
+            .apply(&mut request);
+        assert_eq!(request.tools, Some(vec![tool]));
+    }
+
+    #[test]
     fn is_default_detects_empty_options() {
         assert!(Options::new().is_default());
         assert!(!Options::new().with_temperature(0.1).is_default());
@@ -279,7 +326,12 @@ mod tests {
         let options = Options::new()
             .with_temperature(0.5)
             .with_num_predict(2048)
-            .with_think(Think::Enabled);
+            .with_think(Think::Enabled)
+            .with_tools([Tool::function(
+                "get_weather",
+                "Get the weather",
+                serde_json::json!({"type": "object"}),
+            )]);
         let yaml = serde_yaml_ng::to_string(&options).unwrap();
         let parsed: Options = serde_yaml_ng::from_str(&yaml).unwrap();
         assert_eq!(parsed, options);

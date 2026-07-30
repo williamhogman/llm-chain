@@ -32,9 +32,13 @@ Plus **`llm-chain-mock`**, a deterministic executor for unit-testing chains with
 - **Credential hygiene** — all API keys and tokens are held as `SecretString`: redacted in `Debug` output, zeroized on drop.
 - **Retry-friendly errors** — every provider error exposes `.status()` and `.is_rate_limit()` for uniform backoff handling.
 
+### First-party tool calling
+
+Every HTTP provider speaks its native tool-calling dialect — OpenAI function tools, Anthropic `tool_use` blocks, Gemini function declarations, Bedrock `toolConfig`, Ollama tools — and `llm-chain-tools` bridges any `ToolCollection` into all of them: `tool_schemas()` generates a JSON Schema per tool, `invoke_json()` runs the calls the model makes. See the new [Tool calling](/docs/tool-calling) docs page.
+
 ### The wire, verified
 
-The HTTP drivers are built on a minimal `reqwest` + rustls client — no heavyweight SDKs — and each ships a mock-API test suite that asserts on the exact wire format. The whole workspace (200+ tests) runs offline, including a real GGUF end-to-end inference test.
+The HTTP drivers are built on a minimal `reqwest` + rustls client — no heavyweight SDKs — and each ships a mock-API test suite that asserts on the exact wire format. The whole workspace (250+ tests) runs offline, including a real GGUF end-to-end inference test.
 
 ## Upgrading
 
