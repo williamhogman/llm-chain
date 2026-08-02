@@ -445,8 +445,11 @@ mod tests {
 
     #[test]
     fn frames_adapter_yields_source_errors_and_stops() {
-        let chunks: Vec<Result<&[u8], String>> =
-            vec![Ok(b"data: a\n\n"), Err("boom".to_string()), Ok(b"data: b\n\n")];
+        let chunks: Vec<Result<&[u8], String>> = vec![
+            Ok(b"data: a\n\n"),
+            Err("boom".to_string()),
+            Ok(b"data: b\n\n"),
+        ];
         let stream = frames(SseDecoder::new(), futures::stream::iter(chunks));
         let items: Vec<_> = futures::executor::block_on(StreamExt::collect::<Vec<_>>(stream));
         assert_eq!(items.len(), 2);

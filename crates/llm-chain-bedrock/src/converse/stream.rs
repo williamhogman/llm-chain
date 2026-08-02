@@ -363,13 +363,13 @@ impl ResponseAccumulator {
             input_json.push_str(&tool_use.input);
         }
         if let Some(reasoning) = &delta.reasoning_content
-            && let BlockDraft::Reasoning { text, signature } =
-                self.blocks
-                    .entry(index)
-                    .or_insert_with(|| BlockDraft::Reasoning {
-                        text: String::new(),
-                        signature: None,
-                    })
+            && let BlockDraft::Reasoning { text, signature } = self
+                .blocks
+                .entry(index)
+                .or_insert_with(|| BlockDraft::Reasoning {
+                    text: String::new(),
+                    signature: None,
+                })
         {
             if let Some(fragment) = &reasoning.text {
                 text.push_str(fragment);

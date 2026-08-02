@@ -182,7 +182,10 @@ impl Executor {
         request: &GenerateContentRequest,
     ) -> Result<GenerateContentResponse, GeminiError> {
         let http_request = self
-            .authorize(self.client.post(self.url(&request.model, "generateContent")))
+            .authorize(
+                self.client
+                    .post(self.url(&request.model, "generateContent")),
+            )
             .json(request);
         let response = http_request.send().await?;
 

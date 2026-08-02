@@ -1,9 +1,9 @@
 use std::borrow::Cow;
 
 use futures::StreamExt as _;
+use llm_chain::Parameters;
 use llm_chain::streaming::frames;
 use llm_chain::traits::{self, BoxStream};
-use llm_chain::Parameters;
 use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, utf8_percent_encode};
 use secrecy::{ExposeSecret, SecretString};
 

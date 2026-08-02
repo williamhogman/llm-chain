@@ -226,9 +226,7 @@ impl ResponseAccumulator {
                     }
                     (
                         ContentBlock::Thinking { thinking, .. },
-                        ContentDelta::ThinkingDelta {
-                            thinking: fragment,
-                        },
+                        ContentDelta::ThinkingDelta { thinking: fragment },
                     ) => {
                         thinking.push_str(fragment);
                     }
@@ -253,10 +251,14 @@ impl ResponseAccumulator {
                     .and_then(|response| response.content.get_mut(*index))
                 {
                     // An empty accumulation means a no-argument tool: `{}`.
-                    let raw = if raw.is_empty() { "{}".to_string() } else { raw };
+                    let raw = if raw.is_empty() {
+                        "{}".to_string()
+                    } else {
+                        raw
+                    };
                     // Malformed JSON is preserved as a string rather than lost.
-                    tool_use.input = serde_json::from_str(&raw)
-                        .unwrap_or(serde_json::Value::String(raw));
+                    tool_use.input =
+                        serde_json::from_str(&raw).unwrap_or(serde_json::Value::String(raw));
                 }
             }
             StreamEvent::MessageDelta { delta, usage } => {
@@ -380,10 +382,7 @@ mod tests {
         let tool_uses: Vec<&ToolUse> = response.tool_uses().collect();
         assert_eq!(tool_uses.len(), 1);
         assert_eq!(tool_uses[0].name, "get_weather");
-        assert_eq!(
-            tool_uses[0].input,
-            serde_json::json!({"city": "Stockholm"})
-        );
+        assert_eq!(tool_uses[0].input, serde_json::json!({"city": "Stockholm"}));
     }
 
     #[test]

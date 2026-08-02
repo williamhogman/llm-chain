@@ -129,9 +129,7 @@ fn can_merge(last: &Part, next: &Part) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::super::types::{
-        Candidate, FinishReason, FunctionCall, Role, UsageMetadata,
-    };
+    use super::super::types::{Candidate, FinishReason, FunctionCall, Role, UsageMetadata};
     use super::*;
 
     fn chunk(parts: Vec<Part>) -> GenerateContentResponse {
@@ -165,7 +163,10 @@ mod tests {
 
         let response = accumulator.into_response().unwrap();
         assert_eq!(response.text(), "Hello, world!");
-        assert_eq!(response.candidates[0].content.as_ref().unwrap().parts.len(), 1);
+        assert_eq!(
+            response.candidates[0].content.as_ref().unwrap().parts.len(),
+            1
+        );
         assert_eq!(response.finish_reason(), Some(FinishReason::Stop));
         assert_eq!(response.usage_metadata.total_token_count, 7);
     }

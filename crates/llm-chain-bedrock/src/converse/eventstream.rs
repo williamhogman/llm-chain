@@ -244,7 +244,9 @@ impl EventStreamDecoder {
             return Some(Err(EventStreamError::PreludeCrc));
         }
         if total < OVERHEAD_LEN || total > MAX_FRAME_LEN {
-            return Some(Err(EventStreamError::Malformed("total length out of range")));
+            return Some(Err(EventStreamError::Malformed(
+                "total length out of range",
+            )));
         }
         if headers_len > total - OVERHEAD_LEN {
             return Some(Err(EventStreamError::Malformed(

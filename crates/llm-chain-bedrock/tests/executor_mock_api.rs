@@ -312,7 +312,10 @@ async fn streaming_yields_deltas_and_reassembles_the_response() {
         "contentBlockDelta",
         r#"{"contentBlockIndex":0,"delta":{"text":", Joe!"}}"#,
     ));
-    body.extend(event_frame("contentBlockStop", r#"{"contentBlockIndex":0}"#));
+    body.extend(event_frame(
+        "contentBlockStop",
+        r#"{"contentBlockIndex":0}"#,
+    ));
     body.extend(event_frame("messageStop", r#"{"stopReason":"end_turn"}"#));
     body.extend(event_frame(
         "metadata",

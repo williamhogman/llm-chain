@@ -303,7 +303,10 @@ async fn streaming_yields_chunks_and_reassembles_the_response() {
     let head_lower = captured.head.to_lowercase();
     assert!(head_lower.contains("x-goog-api-key: test-key"));
     assert!(head_lower.contains("accept: text/event-stream"));
-    assert_eq!(captured.body["contents"][0]["parts"][0]["text"], "stream this");
+    assert_eq!(
+        captured.body["contents"][0]["parts"][0]["text"],
+        "stream this"
+    );
 }
 
 static STREAM_ERROR_BODY: &str = r#"data: {"candidates":[{"content":{"role":"model","parts":[{"text":"partial"}]}}]}

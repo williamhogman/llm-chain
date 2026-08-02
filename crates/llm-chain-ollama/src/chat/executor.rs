@@ -149,9 +149,9 @@ impl Executor {
             .bytes_stream()
             .map(|chunk| chunk.map_err(OllamaError::from));
         let lines = frames(NdjsonDecoder::new(), bytes);
-        Ok(Box::pin(
-            lines.map(|line| line.and_then(|line| parse_stream_line(&line))),
-        ))
+        Ok(Box::pin(lines.map(|line| {
+            line.and_then(|line| parse_stream_line(&line))
+        })))
     }
 }
 
