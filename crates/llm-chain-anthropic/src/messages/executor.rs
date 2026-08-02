@@ -1,7 +1,13 @@
+use std::borrow::Cow;
+
+use futures::StreamExt as _;
+use llm_chain::streaming::{SseDecoder, SseEvent, frames};
+use llm_chain::traits::BoxStream;
 use llm_chain::{Parameters, traits};
 use secrecy::{ExposeSecret, SecretString};
 
 use super::error::AnthropicError;
+use super::stream::StreamEvent;
 use super::types::{ContentBlock, MessagesRequest, MessagesResponse, Usage};
 
 /// The environment variable holding the API key.
@@ -81,6 +87,42 @@ impl Executor {
             Err(parse_api_error(status.as_u16(), response.text().await?))
         }
     }
+
+    /// Sends the request with `stream: true` and returns the typed event
+    /// stream once the response headers arrive.
+    async fn send_stream(
+        &self,
+        request: &MessagesRequest,
+    ) -> Result<BoxStream<StreamEvent, AnthropicError>, AnthropicError> {
+        // `stream` is a transport concern, so it is injected here rather than
+        // carried on the request type.
+        let mut body = serde_json::to_value(request)?;
+        body["stream"] = serde_json::Value::Bool(true);
+        let response = self
+            .client
+            .post(format!("{}/v1/messages", self.base_url))
+            .header("x-api-key", self.api_key.expose_secret())
+            .header("anthropic-version", ANTHROPIC_VERSION)
+            .header("accept", "text/event-stream")
+            .json(&body)
+            .send()
+            .await?;
+
+        let status = response.status();
+        if !status.is_success() {
+            return Err(parse_api_error(status.as_u16(), response.text().await?));
+        }
+        let bytes = response
+            .bytes_stream()
+            .map(|chunk| chunk.map_err(AnthropicError::from));
+        let events = frames(SseDecoder::new(), bytes);
+        Ok(Box::pin(events.filter_map(|event| async move {
+            match event {
+                Ok(event) => parse_stream_event(event).transpose(),
+                Err(error) => Some(Err(error)),
+            }
+        })))
+    }
 }
 
 // Manual Debug: keeps the output stable and the API key visibly redacted.
@@ -118,6 +160,43 @@ fn parse_api_error(status: u16, body: String) -> AnthropicError {
     }
 }
 
+/// Maps one SSE event to a typed stream event; `None` for empty keep-alives.
+///
+/// The API signals mid-stream failures as `event: error`, which becomes
+/// [`AnthropicError::StreamError`].
+fn parse_stream_event(event: SseEvent) -> Result<Option<StreamEvent>, AnthropicError> {
+    if event.data.is_empty() {
+        return Ok(None);
+    }
+    if event.event.as_deref() == Some("error") {
+        return Err(parse_stream_error(&event.data));
+    }
+    Ok(Some(serde_json::from_str(&event.data)?))
+}
+
+fn parse_stream_error(data: &str) -> AnthropicError {
+    #[derive(serde::Deserialize)]
+    struct ErrorBody {
+        error: ErrorDetail,
+    }
+    #[derive(serde::Deserialize)]
+    struct ErrorDetail {
+        #[serde(rename = "type")]
+        error_type: String,
+        message: String,
+    }
+    match serde_json::from_str::<ErrorBody>(data) {
+        Ok(parsed) => AnthropicError::StreamError {
+            error_type: parsed.error.error_type,
+            message: parsed.error.message,
+        },
+        Err(_) => AnthropicError::StreamError {
+            error_type: "unknown".to_string(),
+            message: data.to_string(),
+        },
+    }
+}
+
 impl traits::Executor for Executor {
     type Step = super::step::Step;
     type Output = MessagesResponse;
@@ -143,6 +222,21 @@ impl traits::Executor for Executor {
         combined.stop_reason = other.stop_reason;
         combined.stop_sequence = other.stop_sequence.clone();
         combined
+    }
+}
+
+impl traits::StreamingExecutor for Executor {
+    type StreamEvent = StreamEvent;
+
+    async fn execute_stream(
+        &self,
+        input: MessagesRequest,
+    ) -> Result<BoxStream<StreamEvent, AnthropicError>, AnthropicError> {
+        self.send_stream(&input).await
+    }
+
+    fn text_delta(event: &StreamEvent) -> Option<Cow<'_, str>> {
+        event.text_delta().map(Cow::Borrowed)
     }
 }
 

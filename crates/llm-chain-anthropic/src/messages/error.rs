@@ -20,12 +20,23 @@ pub enum AnthropicError {
     /// The HTTP request failed (connection, TLS, timeout, or invalid response body).
     #[error(transparent)]
     Http(#[from] reqwest::Error),
+    /// A request body or streamed event could not be (de)serialized.
+    #[error("invalid JSON payload: {0}")]
+    Json(#[from] serde_json::Error),
     /// The API returned an error response.
     #[error("anthropic api error ({status} {error_type}): {message}")]
     Api {
         /// The HTTP status code.
         status: u16,
         /// The API error type, e.g. `invalid_request_error` or `overloaded_error`.
+        error_type: String,
+        /// The human-readable error message.
+        message: String,
+    },
+    /// The API reported an error mid-stream (an SSE `error` event).
+    #[error("anthropic stream error ({error_type}): {message}")]
+    StreamError {
+        /// The API error type, e.g. `overloaded_error`.
         error_type: String,
         /// The human-readable error message.
         message: String,
@@ -38,7 +49,7 @@ impl AnthropicError {
         match self {
             Self::Api { status, .. } => Some(*status),
             Self::Http(error) => error.status().map(|status| status.as_u16()),
-            Self::MissingApiKey => None,
+            Self::MissingApiKey | Self::Json(_) | Self::StreamError { .. } => None,
         }
     }
 
@@ -52,6 +63,9 @@ impl AnthropicError {
                 *status == 429
                     || error_type == "rate_limit_error"
                     || error_type == "overloaded_error"
+            }
+            Self::StreamError { error_type, .. } => {
+                error_type == "rate_limit_error" || error_type == "overloaded_error"
             }
             _ => self.status() == Some(429),
         }
@@ -82,5 +96,21 @@ mod tests {
         assert!(api_error(529, "overloaded_error").is_rate_limit());
         assert!(!api_error(400, "invalid_request_error").is_rate_limit());
         assert!(!AnthropicError::MissingApiKey.is_rate_limit());
+    }
+
+    #[test]
+    fn stream_errors_expose_retryability_but_no_status() {
+        let error = AnthropicError::StreamError {
+            error_type: "overloaded_error".to_string(),
+            message: "Overloaded".to_string(),
+        };
+        assert_eq!(error.status(), None);
+        assert!(error.is_rate_limit());
+
+        let error = AnthropicError::StreamError {
+            error_type: "api_error".to_string(),
+            message: "internal".to_string(),
+        };
+        assert!(!error.is_rate_limit());
     }
 }
