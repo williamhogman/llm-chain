@@ -36,9 +36,13 @@ Plus **`llm-chain-mock`**, a deterministic executor for unit-testing chains with
 
 Every HTTP provider speaks its native tool-calling dialect — OpenAI function tools, Anthropic `tool_use` blocks, Gemini function declarations, Bedrock `toolConfig`, Ollama tools — and `llm-chain-tools` bridges any `ToolCollection` into all of them: `tool_schemas()` generates a JSON Schema per tool, `invoke_json()` runs the calls the model makes. See the new [Tool calling](/docs/tool-calling) docs page.
 
+### Streaming everywhere
+
+All five HTTP drivers implement a unified `StreamingExecutor` trait: `execute_stream()` yields typed events as the model generates — SSE for OpenAI, Anthropic and Gemini, NDJSON for Ollama, and AWS's CRC-validated binary event stream for Bedrock, all decoded natively. `text_delta()` prints tokens provider-agnostically, and each driver's `ResponseAccumulator` folds the events back into the full response — text, reasoning, tool calls and token usage included. See the new [Streaming](/docs/streaming) docs page.
+
 ### The wire, verified
 
-The HTTP drivers are built on a minimal `reqwest` + rustls client — no heavyweight SDKs — and each ships a mock-API test suite that asserts on the exact wire format. The whole workspace (250+ tests) runs offline, including a real GGUF end-to-end inference test.
+The HTTP drivers are built on a minimal `reqwest` + rustls client — no heavyweight SDKs — and each ships a mock-API test suite that asserts on the exact wire format, streaming included. The whole workspace (310+ tests) runs offline, including a real GGUF end-to-end inference test.
 
 ## Upgrading
 

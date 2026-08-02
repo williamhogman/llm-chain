@@ -209,3 +209,195 @@ async fn chains_run_end_to_end_against_the_mock() {
     assert_eq!(res.text(), "chained");
     server.join().unwrap();
 }
+
+// ---------------------------------------------------------------------------
+// Streaming (ConverseStream, binary event stream framing)
+// ---------------------------------------------------------------------------
+
+use llm_chain_bedrock::converse::{EventStreamMessage, HeaderValue, ResponseAccumulator};
+
+/// Encodes one `event` frame in AWS's binary event stream format.
+fn event_frame(event_type: &str, payload: &str) -> Vec<u8> {
+    EventStreamMessage {
+        headers: vec![
+            (
+                ":message-type".to_string(),
+                HeaderValue::String("event".to_string()),
+            ),
+            (
+                ":event-type".to_string(),
+                HeaderValue::String(event_type.to_string()),
+            ),
+        ],
+        payload: payload.as_bytes().to_vec(),
+    }
+    .to_bytes()
+}
+
+/// Encodes one `exception` frame.
+fn exception_frame(exception_type: &str, payload: &str) -> Vec<u8> {
+    EventStreamMessage {
+        headers: vec![
+            (
+                ":message-type".to_string(),
+                HeaderValue::String("exception".to_string()),
+            ),
+            (
+                ":exception-type".to_string(),
+                HeaderValue::String(exception_type.to_string()),
+            ),
+        ],
+        payload: payload.as_bytes().to_vec(),
+    }
+    .to_bytes()
+}
+
+/// Spawns a one-shot HTTP/1.1 server that answers a single request with the
+/// given binary event stream body, written in small chunks to exercise
+/// incremental decoding.
+fn spawn_streaming(body: Vec<u8>) -> (String, std::thread::JoinHandle<String>) {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+    let addr = format!("http://{}", listener.local_addr().expect("addr"));
+    let handle = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept");
+        let mut buf = Vec::new();
+        let mut chunk = [0u8; 4096];
+        let header_end = loop {
+            let n = stream.read(&mut chunk).expect("read");
+            buf.extend_from_slice(&chunk[..n]);
+            if let Some(pos) = buf.windows(4).position(|w| w == b"\r\n\r\n") {
+                break pos + 4;
+            }
+        };
+        let head = String::from_utf8_lossy(&buf[..header_end]).to_string();
+        let content_length: usize = head
+            .lines()
+            .find_map(|line| {
+                let (name, value) = line.split_once(':')?;
+                name.eq_ignore_ascii_case("content-length")
+                    .then(|| value.trim().parse().ok())?
+            })
+            .expect("content-length header");
+        while buf.len() < header_end + content_length {
+            let n = stream.read(&mut chunk).expect("read body");
+            buf.extend_from_slice(&chunk[..n]);
+        }
+        let response_head = format!(
+            "HTTP/1.1 200 OK\r\ncontent-type: application/vnd.amazon.eventstream\r\ncontent-length: {}\r\nconnection: close\r\n\r\n",
+            body.len()
+        );
+        stream.write_all(response_head.as_bytes()).expect("write");
+        // Write the frames in deliberately awkward chunks.
+        for piece in body.chunks(7) {
+            stream.write_all(piece).expect("write body");
+            stream.flush().expect("flush");
+        }
+        head
+    });
+    (addr, handle)
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn streaming_yields_deltas_and_reassembles_the_response() {
+    use futures::StreamExt as _;
+    use llm_chain::traits::StreamingExecutor as _;
+
+    let mut body = Vec::new();
+    body.extend(event_frame("messageStart", r#"{"role":"assistant"}"#));
+    body.extend(event_frame(
+        "contentBlockDelta",
+        r#"{"contentBlockIndex":0,"delta":{"text":"Hello"}}"#,
+    ));
+    body.extend(event_frame(
+        "contentBlockDelta",
+        r#"{"contentBlockIndex":0,"delta":{"text":", Joe!"}}"#,
+    ));
+    body.extend(event_frame(
+        "contentBlockStop",
+        r#"{"contentBlockIndex":0}"#,
+    ));
+    body.extend(event_frame("messageStop", r#"{"stopReason":"end_turn"}"#));
+    body.extend(event_frame(
+        "metadata",
+        r#"{"usage":{"inputTokens":12,"outputTokens":4,"totalTokens":16},"metrics":{"latencyMs":99}}"#,
+    ));
+    let (addr, server) = spawn_streaming(body);
+
+    let exec = Executor::with_bearer_token("test-key").with_base_url(&addr);
+    let step = Step::new(Model::default(), [(Role::User, "Greet {}")]);
+    let request = step.format(&Parameters::new_with_text("Joe")).unwrap();
+
+    let mut stream = exec.execute_stream(request).await.unwrap();
+    let mut accumulator = ResponseAccumulator::new();
+    let mut streamed = String::new();
+    while let Some(event) = stream.next().await {
+        let event = event.unwrap();
+        if let Some(text) = event.text_delta() {
+            streamed.push_str(text);
+        }
+        accumulator.apply(&event);
+    }
+    let response = accumulator.into_response().unwrap();
+
+    assert_eq!(streamed, "Hello, Joe!");
+    assert_eq!(response.text(), "Hello, Joe!");
+    assert_eq!(response.stop_reason, Some(StopReason::EndTurn));
+    assert_eq!(response.usage.total_tokens, 16);
+    assert_eq!(response.metrics.unwrap().latency_ms, 99);
+
+    let head = server.join().unwrap();
+    assert!(head.contains("/converse-stream HTTP/1.1"));
+    let head_lower = head.to_lowercase();
+    assert!(head_lower.contains("authorization: bearer test-key"));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn mid_stream_exceptions_map_to_typed_errors() {
+    use futures::StreamExt as _;
+    use llm_chain::traits::StreamingExecutor as _;
+
+    let mut body = Vec::new();
+    body.extend(event_frame("messageStart", r#"{"role":"assistant"}"#));
+    body.extend(event_frame(
+        "contentBlockDelta",
+        r#"{"contentBlockIndex":0,"delta":{"text":"Hel"}}"#,
+    ));
+    body.extend(exception_frame(
+        "throttlingException",
+        r#"{"message":"Too many tokens, slow down."}"#,
+    ));
+    let (addr, server) = spawn_streaming(body);
+
+    let exec = Executor::with_bearer_token("test-key").with_base_url(&addr);
+    let step = Step::new(Model::default(), [(Role::User, "hi")]);
+    let request = step.format(&Parameters::new()).unwrap();
+
+    let mut stream = exec.execute_stream(request).await.unwrap();
+    let mut texts = String::new();
+    let mut error = None;
+    while let Some(event) = stream.next().await {
+        match event {
+            Ok(event) => {
+                if let Some(text) = event.text_delta() {
+                    texts.push_str(text);
+                }
+            }
+            Err(e) => error = Some(e),
+        }
+    }
+
+    assert_eq!(texts, "Hel");
+    let error = error.expect("stream carried an exception");
+    assert!(error.is_rate_limit());
+    match error {
+        BedrockError::StreamException {
+            exception_type,
+            message,
+        } => {
+            assert_eq!(exception_type, "throttlingException");
+            assert_eq!(message, "Too many tokens, slow down.");
+        }
+        other => panic!("expected StreamException, got: {other:?}"),
+    }
+    server.join().unwrap();
+}

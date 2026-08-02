@@ -223,6 +223,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "crc32fast"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9481c1c90cbf2ac953f07c8d4a58aa3945c425b7185c9154d67a65e4230da511"
+dependencies = [
+ "cfg-if",
+]
+
+[[package]]
 name = "darling"
 version = "0.20.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -926,6 +935,7 @@ dependencies = [
 name = "llm-chain-anthropic"
 version = "0.14.0"
 dependencies = [
+ "futures",
  "llm-chain",
  "reqwest",
  "secrecy",
@@ -940,6 +950,8 @@ dependencies = [
 name = "llm-chain-bedrock"
 version = "0.14.0"
 dependencies = [
+ "crc32fast",
+ "futures",
  "llm-chain",
  "percent-encoding",
  "reqwest",
@@ -955,6 +967,7 @@ dependencies = [
 name = "llm-chain-gemini"
 version = "0.14.0"
 dependencies = [
+ "futures",
  "llm-chain",
  "reqwest",
  "secrecy",
@@ -991,6 +1004,7 @@ dependencies = [
 name = "llm-chain-ollama"
 version = "0.14.0"
 dependencies = [
+ "futures",
  "llm-chain",
  "reqwest",
  "secrecy",
@@ -1006,6 +1020,7 @@ name = "llm-chain-openai"
 version = "0.14.0"
 dependencies = [
  "async-openai",
+ "futures",
  "llm-chain",
  "reqwest",
  "secrecy",

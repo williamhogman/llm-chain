@@ -16,10 +16,11 @@ crates were added.
 (commit `51cce6b`, the 0.1.x line) and is a from-scratch replacement of that
 architecture. The 0.3.0–0.13.0 versions published from upstream's divergent
 2023–2024 line (last publish: 0.13.0, November 2023; last commit: October
-2024) are not ancestors of this release, and their additions (streaming,
-vector stores, the `prompt!`/`executor!` macros) are not carried over — see
-the changelog entry for that line below. 0.14.0 is numbered above 0.13.0 so
-crates.io resolution moves forward.
+2024) are not ancestors of this release. Of that line's additions, streaming
+has been reimplemented on the new architecture; the vector stores and the
+`prompt!`/`executor!` macros are not carried over — see the changelog entry
+for that line below. 0.14.0 is numbered above 0.13.0 so crates.io resolution
+moves forward.
 
 **Breaking release.** See [`docs/MIGRATION-0.14.md`](docs/MIGRATION-0.14.md)
 for a step-by-step upgrade guide from both 0.1.x and 0.13.x.
@@ -43,6 +44,10 @@ for a step-by-step upgrade guide from both 0.1.x and 0.13.x.
 - **First-party tool calling** — native function/tool-use support on every
   HTTP provider, plus a provider-neutral bridge in `llm-chain-tools`
   (`tool_schemas()` / `invoke_json()`).
+- **Token-by-token streaming** — a unified `StreamingExecutor` trait across
+  all five HTTP providers, with typed per-provider events and accumulators
+  that rebuild the full response (SSE, NDJSON and AWS's binary event stream
+  all decoded natively).
 - **Credential hygiene** — every API key and token is held as
   `secrecy::SecretString`: redacted from `Debug`, zeroized on drop.
 
@@ -91,6 +96,14 @@ for a step-by-step upgrade guide from both 0.1.x and 0.13.x.
   `{{`/`}}` escape sequences.
 - `chains::sequential::Chain`: `push()`, `len()`, `is_empty()`, `steps()`,
   `FromIterator`, `Extend`, `IntoIterator`.
+- `traits::StreamingExecutor`: the shared contract for token-by-token
+  streaming — `execute_stream()` resolves to a `BoxStream` of typed
+  per-provider events once the model starts answering, and `text_delta()`
+  extracts answer text provider-agnostically.
+- `streaming` module: sans-IO wire decoders shared by the drivers —
+  `SseDecoder` (Server-Sent Events), `NdjsonDecoder` (newline-delimited
+  JSON), and the `FrameDecoder` trait with the `frames()` adapter for
+  custom framings.
 - `async` cargo feature: async file I/O for chain serialization.
 
 #### Providers
@@ -119,14 +132,26 @@ for a step-by-step upgrade guide from both 0.1.x and 0.13.x.
   `tool_schemas()` generates a JSON Schema per tool and `invoke_json()`
   executes the calls the model makes. Runnable `native_agent` example and a
   new website docs page.
+- **Streaming on every HTTP provider**: each driver implements
+  `StreamingExecutor` with events mirroring its wire protocol — OpenAI
+  `chat.completion.chunk`s (with `stream_options.include_usage` on by
+  default), Anthropic SSE events, Gemini `streamGenerateContent?alt=sse`
+  chunks, Bedrock's binary `converse-stream` event stream (CRC-validated
+  decoder built in) and Ollama NDJSON chunks. Each driver ships a
+  `ResponseAccumulator` folding the events back into its regular response
+  type (text, reasoning, tool calls, usage), plus a runnable
+  `*_streaming_generation` example.
 - **All HTTP providers**: `.status()` and `.is_rate_limit()` on error types
   for uniform retry/backoff handling across providers (429s, Anthropic
-  `overloaded_error`, Gemini `RESOURCE_EXHAUSTED`, Bedrock throttling).
+  `overloaded_error`, Gemini `RESOURCE_EXHAUSTED`, Bedrock throttling),
+  including exceptions raised mid-stream.
 
 #### Tooling & CI
 
 - Mock-API integration test suites for Anthropic, Gemini, Bedrock and Ollama
-  asserting wire format, auth headers and error mapping — no API keys needed.
+  asserting wire format, auth headers and error mapping — no API keys needed
+  — including streaming suites that replay SSE, NDJSON and chunked binary
+  event-stream responses (mid-stream exceptions included).
 - End-to-end GGUF inference test for `llm-chain-llama` (tiny stories260K
   model).
 - CI: fmt + clippy (`-D warnings`) + multi-OS test matrix (Ubuntu, macOS) +
@@ -172,11 +197,11 @@ for a step-by-step upgrade guide from both 0.1.x and 0.13.x.
 - OpenAI `seed` request option (deprecated upstream).
 - Relative to the 0.13.x line (not ancestors of this release, see the
   lineage note): the `prompt!`/`executor!` macros, unified `Options` map,
-  SSE streaming, conversation chains, and the `llm-chain-local`,
+  conversation chains, and the `llm-chain-local`,
   `llm-chain-macros`, `llm-chain-sagemaker-endpoint`,
   `llm-chain-gemma(-sys)`, `llm-chain-qdrant`, `llm-chain-milvus` and
   `llm-chain-hnsw` crates. (`llm-chain-mock` is carried over, rebuilt on the
-  0.14 architecture.)
+  0.14 architecture; streaming is reimplemented via `StreamingExecutor`.)
 
 ## [0.3.0]–[0.13.0] - 2023-2024
 

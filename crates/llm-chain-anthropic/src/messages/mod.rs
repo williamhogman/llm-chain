@@ -2,7 +2,9 @@
 //! [Messages API](https://docs.anthropic.com/en/api/messages).
 //!
 //! - [`Step`] pairs a [`Model`] with a [`ChatPromptTemplate`] and optional [`Options`].
-//! - [`Executor`] sends formatted requests to the API and returns [`MessagesResponse`]s.
+//! - [`Executor`] sends formatted requests to the API and returns [`MessagesResponse`]s,
+//!   or streams them as [`StreamEvent`]s via
+//!   [`StreamingExecutor`](llm_chain::traits::StreamingExecutor).
 //! - [`ChatPromptTemplate`] holds optional system instructions plus user/assistant
 //!   message templates.
 mod error;
@@ -10,6 +12,7 @@ mod executor;
 mod options;
 mod prompt;
 mod step;
+mod stream;
 mod types;
 
 pub use error::{AnthropicError, FormatError};
@@ -17,6 +20,7 @@ pub use executor::{ANTHROPIC_VERSION, API_KEY_ENV_VAR, DEFAULT_BASE_URL, Executo
 pub use options::{DEFAULT_MAX_TOKENS, Options};
 pub use prompt::{ChatPromptTemplate, MessagePromptTemplate};
 pub use step::{Model, Step};
+pub use stream::{ContentDelta, MessageDelta, ResponseAccumulator, StreamEvent};
 pub use types::{
     ContentBlock, Effort, Message, MessageContent, MessagesRequest, MessagesResponse, Role,
     StopReason, Thinking, ToolChoice, ToolDefinition, ToolResult, ToolUse, Usage,

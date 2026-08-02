@@ -1,10 +1,14 @@
+use std::borrow::Cow;
 use std::sync::Arc;
 
 use async_openai::config::{Config, OpenAIConfig};
 use async_openai::error::OpenAIError;
-use async_openai::types::chat::{CompletionUsage, CreateChatCompletionResponse};
+use async_openai::types::chat::{
+    ChatCompletionStreamOptions, CompletionUsage, CreateChatCompletionResponse,
+    CreateChatCompletionStreamResponse,
+};
 use llm_chain::Parameters;
-use llm_chain::traits;
+use llm_chain::traits::{self, BoxStream};
 
 use super::azure::AzureV1Config;
 use super::step::Step;
@@ -150,6 +154,41 @@ impl<C: Config> traits::Executor for Executor<C> {
         }
         combined.usage = combine_usage(output.usage.as_ref(), other.usage.as_ref());
         combined
+    }
+}
+
+impl<C: Config> traits::StreamingExecutor for Executor<C> {
+    /// Streamed responses arrive as `chat.completion.chunk` objects.
+    type StreamEvent = CreateChatCompletionStreamResponse;
+
+    /// Executes the request with streaming enabled.
+    ///
+    /// Token usage reporting (`stream_options.include_usage`) is switched on
+    /// unless the request already set stream options; the final chunk then
+    /// carries the usage for the whole request with an empty `choices` array.
+    async fn execute_stream(
+        &self,
+        input: <<Self as traits::Executor>::Step as traits::Step>::Output,
+    ) -> Result<BoxStream<Self::StreamEvent, OpenAIError>, OpenAIError> {
+        let mut input = input;
+        if input.stream_options.is_none() {
+            input.stream_options = Some(ChatCompletionStreamOptions {
+                include_usage: Some(true),
+                include_obfuscation: None,
+            });
+        }
+        self.client.chat().create_stream(input).await
+    }
+
+    fn text_delta(event: &CreateChatCompletionStreamResponse) -> Option<Cow<'_, str>> {
+        event
+            .choices
+            .first()?
+            .delta
+            .content
+            .as_deref()
+            .filter(|content| !content.is_empty())
+            .map(Cow::Borrowed)
     }
 }
 

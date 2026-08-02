@@ -8,7 +8,8 @@
 //! - [`Options`] — per-step request options such as temperature, reasoning effort and
 //!   response format
 //! - [`Step`] — a model, a prompt and options, ready to be chained
-//! - [`Executor`] — runs steps against the API
+//! - [`Executor`] — runs steps against the API, buffered or streamed via
+//!   [`StreamingExecutor`](llm_chain::traits::StreamingExecutor)
 //! - [`AzureExecutor`] / [`AzureV1Config`] — the same executor pointed at Azure
 //!   OpenAI's OpenAI-compatible v1 surface
 mod azure;
@@ -17,13 +18,15 @@ mod executor;
 mod options;
 mod prompt;
 mod step;
+mod stream;
 mod tools;
 
 pub use async_openai::config::OpenAIConfig;
 pub use async_openai::types::chat::{
-    ChatCompletionMessageToolCall, ChatCompletionMessageToolCalls, ChatCompletionTool,
-    ChatCompletionToolChoiceOption, ChatCompletionTools, FunctionCall, FunctionObject,
-    ReasoningEffort, ResponseFormat, ToolChoiceOptions, Verbosity,
+    ChatCompletionMessageToolCall, ChatCompletionMessageToolCalls, ChatCompletionStreamOptions,
+    ChatCompletionTool, ChatCompletionToolChoiceOption, ChatCompletionTools,
+    CreateChatCompletionStreamResponse, FunctionCall, FunctionObject, ReasoningEffort,
+    ResponseFormat, ToolChoiceOptions, Verbosity,
 };
 pub use azure::{AZURE_API_KEY_HEADER, AZURE_V1_PATH, AzureV1Config};
 pub use error::FormatError;
@@ -31,4 +34,5 @@ pub use executor::{AzureExecutor, Executor};
 pub use options::Options;
 pub use prompt::{ChatPromptTemplate, MessagePromptTemplate, Role};
 pub use step::{Model, Step};
+pub use stream::ResponseAccumulator;
 pub use tools::{assistant_tool_calls_message, function_calls, function_tool, tool_result_message};

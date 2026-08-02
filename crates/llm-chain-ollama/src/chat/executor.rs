@@ -1,3 +1,8 @@
+use std::borrow::Cow;
+
+use futures::StreamExt as _;
+use llm_chain::streaming::{NdjsonDecoder, frames};
+use llm_chain::traits::BoxStream;
 use llm_chain::{Parameters, traits};
 use secrecy::{ExposeSecret, SecretString};
 
@@ -109,6 +114,45 @@ impl Executor {
             Err(parse_api_error(status.as_u16(), response.text().await?))
         }
     }
+
+    /// Sends the request with `stream: true` and returns the chunk stream
+    /// once the response headers arrive.
+    async fn send_stream(
+        &self,
+        request: &ChatRequest,
+    ) -> Result<BoxStream<ChatResponse, OllamaError>, OllamaError> {
+        let mut request = request.clone();
+        request.stream = true;
+        let mut http_request = self
+            .client
+            .post(format!("{}/api/chat", self.base_url))
+            .json(&request);
+        if let Some(api_key) = &self.api_key {
+            http_request = http_request.bearer_auth(api_key.expose_secret());
+        }
+        let response = http_request.send().await.map_err(|source| {
+            if source.is_connect() {
+                OllamaError::Connection {
+                    url: self.base_url.clone(),
+                    source,
+                }
+            } else {
+                OllamaError::Http(source)
+            }
+        })?;
+
+        let status = response.status();
+        if !status.is_success() {
+            return Err(parse_api_error(status.as_u16(), response.text().await?));
+        }
+        let bytes = response
+            .bytes_stream()
+            .map(|chunk| chunk.map_err(OllamaError::from));
+        let lines = frames(NdjsonDecoder::new(), bytes);
+        Ok(Box::pin(lines.map(|line| {
+            line.and_then(|line| parse_stream_line(&line))
+        })))
+    }
 }
 
 // Manual Debug: keeps the output stable and the API key visibly redacted.
@@ -143,6 +187,17 @@ fn parse_api_error(status: u16, body: String) -> OllamaError {
         Err(_) => body,
     };
     OllamaError::Api { status, message }
+}
+
+/// Parses one NDJSON line into a chunk. A line carrying a top-level `error`
+/// string (how the server reports mid-stream failures) becomes an
+/// [`OllamaError::StreamError`].
+fn parse_stream_line(line: &str) -> Result<ChatResponse, OllamaError> {
+    let value: serde_json::Value = serde_json::from_str(line)?;
+    if let Some(message) = value.get("error").and_then(serde_json::Value::as_str) {
+        return Err(OllamaError::StreamError(message.to_string()));
+    }
+    Ok(serde_json::from_value(value)?)
 }
 
 /// Sums two optional counters; `None` only when both sides are `None`.
@@ -183,6 +238,23 @@ impl traits::Executor for Executor {
         combined.eval_count = merge_counts(output.eval_count, other.eval_count);
         combined.eval_duration = merge_counts(output.eval_duration, other.eval_duration);
         combined
+    }
+}
+
+impl traits::StreamingExecutor for Executor {
+    /// Streamed Ollama responses arrive as partial [`ChatResponse`] chunks
+    /// rather than a separate event type.
+    type StreamEvent = ChatResponse;
+
+    async fn execute_stream(
+        &self,
+        input: ChatRequest,
+    ) -> Result<BoxStream<ChatResponse, OllamaError>, OllamaError> {
+        self.send_stream(&input).await
+    }
+
+    fn text_delta(event: &ChatResponse) -> Option<Cow<'_, str>> {
+        (!event.message.content.is_empty()).then_some(Cow::Borrowed(event.message.content.as_str()))
     }
 }
 

@@ -11,6 +11,8 @@
 //! - [`Parameters`] — the key-value state threaded between steps
 //! - [`traits::Step`] and [`traits::Executor`] — the contract every model
 //!   driver implements, with native `async fn` and typed errors
+//! - [`traits::StreamingExecutor`] — the same contract for token-by-token
+//!   streaming, with [`streaming`] housing the shared wire decoders
 //! - [`chains::sequential`] and [`chains::map_reduce`] — the chain runners
 //! - [`serialization`] — store chains as YAML and load them back
 //!
@@ -59,6 +61,7 @@ mod model_id;
 mod parameters;
 #[cfg(feature = "serialization")]
 pub mod serialization;
+pub mod streaming;
 mod templates;
 pub mod traits;
 

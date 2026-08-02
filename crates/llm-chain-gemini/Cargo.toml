@@ -18,6 +18,7 @@ default = ["serialization"]
 serialization = ["llm-chain/serialization"]
 
 [dependencies]
+futures.workspace = true
 llm-chain.workspace = true
 reqwest.workspace = true
 secrecy.workspace = true
