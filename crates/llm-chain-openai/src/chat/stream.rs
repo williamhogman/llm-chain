@@ -237,8 +237,8 @@ mod tests {
         assert_eq!(choice.message.content, None);
         let calls: Vec<_> = crate::chat::function_calls(&response).collect();
         assert_eq!(calls.len(), 1);
-        assert_eq!(calls[0].name, "get_weather");
-        assert_eq!(calls[0].arguments, r#"{"city":"Stockholm"}"#);
+        assert_eq!(calls[0].function.name, "get_weather");
+        assert_eq!(calls[0].function.arguments, r#"{"city":"Stockholm"}"#);
     }
 
     #[test]
