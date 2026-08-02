@@ -993,6 +993,7 @@ dependencies = [
 name = "llm-chain-ollama"
 version = "0.14.0"
 dependencies = [
+ "futures",
  "llm-chain",
  "reqwest",
  "secrecy",
