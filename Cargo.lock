@@ -926,6 +926,7 @@ dependencies = [
 name = "llm-chain-anthropic"
 version = "0.14.0"
 dependencies = [
+ "futures",
  "llm-chain",
  "reqwest",
  "secrecy",
