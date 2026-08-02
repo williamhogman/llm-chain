@@ -215,3 +215,74 @@ async fn chains_run_end_to_end_against_the_mock() {
     assert_eq!(res.text(), "chained");
     server.join().unwrap();
 }
+
+// NDJSON: one complete JSON chunk per line, `done: true` on the last.
+static STREAM_BODY: &str = r#"{"model":"qwen3","created_at":"2026-07-30T08:00:00Z","message":{"role":"assistant","content":"Str"},"done":false}
+{"model":"qwen3","created_at":"2026-07-30T08:00:00Z","message":{"role":"assistant","content":"eamed!"},"done":false}
+{"model":"qwen3","created_at":"2026-07-30T08:00:01Z","message":{"role":"assistant","content":""},"done":true,"done_reason":"stop","prompt_eval_count":7,"eval_count":6,"total_duration":900000000}
+"#;
+
+#[tokio::test(flavor = "current_thread")]
+async fn streaming_yields_chunks_and_reassembles_the_response() {
+    use futures::StreamExt as _;
+    use llm_chain::traits::StreamingExecutor as _;
+    use llm_chain_ollama::chat::ResponseAccumulator;
+
+    let (addr, server) = spawn_one_shot("HTTP/1.1 200 OK", STREAM_BODY);
+
+    let exec = Executor::new_default().with_base_url(&addr);
+    let step = Step::new(Model::default(), [(Role::User, "stream {}")]);
+    let request = step.format(&Parameters::new_with_text("this")).unwrap();
+
+    let mut stream = exec.execute_stream(request).await.unwrap();
+    let mut live_text = String::new();
+    let mut accumulator = ResponseAccumulator::new();
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.unwrap();
+        live_text.push_str(&chunk.message.content);
+        accumulator.apply(&chunk);
+    }
+
+    assert_eq!(live_text, "Streamed!");
+    assert!(accumulator.is_complete());
+    let response = accumulator.into_response().unwrap();
+    assert_eq!(response.text(), "Streamed!");
+    assert_eq!(response.done_reason, Some(DoneReason::Stop));
+    assert_eq!(response.prompt_eval_count, Some(7));
+    assert_eq!(response.eval_count, Some(6));
+
+    let captured = server.join().unwrap();
+    assert!(captured.head.starts_with("POST /api/chat HTTP/1.1\r\n"));
+    // The buffered path sends stream: false; the streaming path flips it.
+    assert_eq!(captured.body["stream"], true);
+    assert_eq!(captured.body["messages"][0]["content"], "stream this");
+}
+
+static STREAM_ERROR_BODY: &str = r#"{"model":"qwen3","message":{"role":"assistant","content":"partial"},"done":false}
+{"error":"model runner has unexpectedly stopped"}
+"#;
+
+#[tokio::test(flavor = "current_thread")]
+async fn mid_stream_errors_surface_as_typed_stream_errors() {
+    use futures::StreamExt as _;
+    use llm_chain::traits::StreamingExecutor as _;
+
+    let (addr, server) = spawn_one_shot("HTTP/1.1 200 OK", STREAM_ERROR_BODY);
+
+    let exec = Executor::new_default().with_base_url(&addr);
+    let step = Step::new(Model::default(), [(Role::User, "hi")]);
+    let request = step.format(&Parameters::new()).unwrap();
+
+    let mut stream = exec.execute_stream(request).await.unwrap();
+    let first = stream.next().await.unwrap().unwrap();
+    assert_eq!(first.message.content, "partial");
+
+    let error = stream.next().await.unwrap().unwrap_err();
+    match &error {
+        OllamaError::StreamError(message) => {
+            assert_eq!(message, "model runner has unexpectedly stopped");
+        }
+        other => panic!("expected StreamError, got: {other:?}"),
+    }
+    server.join().unwrap();
+}
