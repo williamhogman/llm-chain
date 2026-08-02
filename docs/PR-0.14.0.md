@@ -28,15 +28,16 @@ crates.io resolution moves forward), not as an incremental diff on top of
 
 ### What this branch does NOT carry over from 0.13.x
 
-Called out explicitly so nobody discovers it post-merge: SSE streaming, the
+Called out explicitly so nobody discovers it post-merge: the
 `prompt!`/`executor!` macros, the unified `Options` map, conversation
 chains, and the `local`, `macros`, `sagemaker-endpoint`,
 `gemma(-sys)`, `qdrant`, `milvus` and `hnsw` crates. (`llm-chain-mock` *is*
-carried over, rebuilt on the 0.14 architecture.)
+carried over, rebuilt on the 0.14 architecture, and streaming *is*
+reimplemented via the new `StreamingExecutor` trait.)
 
 `docs/MIGRATION-0.14.md` maps each to its 0.14 equivalent (or its absence).
-Streaming is the top follow-up candidate; the vector-store crates are best
-revisited against 2026-era store APIs rather than ported.
+Conversation chains are the top follow-up candidate; the vector-store crates
+are best revisited against 2026-era store APIs rather than ported.
 
 ## Title
 
@@ -121,6 +122,22 @@ llama.cpp FFI with a git submodule) are deprecated or unmaintained.
   Schema per tool for the native definitions and `invoke_json()` executes the
   calls — see the runnable `native_agent` example and the new "Tool calling"
   docs page.
+
+**Streaming (all five HTTP providers)**
+- Unified `StreamingExecutor` trait in core: `execute_stream()` resolves to
+  a `BoxStream` of typed per-provider events as soon as the model starts
+  answering; `text_delta()` extracts answer text provider-agnostically.
+- Sans-IO wire decoders in `llm_chain::streaming` (`SseDecoder`,
+  `NdjsonDecoder`, `FrameDecoder` + `frames` adapter), plus a CRC-validated
+  decoder for AWS's binary event stream (`application/vnd.amazon.eventstream`)
+  in the Bedrock crate.
+- Per-driver `ResponseAccumulator`s fold the events back into the regular
+  response types — text, reasoning deltas, tool calls and usage included
+  (OpenAI streams with `stream_options.include_usage` on by default).
+- Mock-API streaming tests for every driver (SSE, NDJSON, chunked binary
+  frames, mid-stream throttling exceptions), a runnable
+  `*_streaming_generation` example per crate, and a new "Streaming" docs
+  page.
 
 
 
