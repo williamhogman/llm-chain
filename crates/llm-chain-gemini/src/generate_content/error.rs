@@ -21,6 +21,9 @@ pub enum GeminiError {
     /// The HTTP request failed (connection, TLS, timeout, or invalid response body).
     #[error(transparent)]
     Http(#[from] reqwest::Error),
+    /// A streamed chunk could not be deserialized.
+    #[error("invalid JSON payload: {0}")]
+    Json(#[from] serde_json::Error),
     /// The API returned an error response.
     #[error("gemini api error ({http_status} {status}): {message}")]
     Api {
@@ -45,7 +48,7 @@ impl GeminiError {
         match self {
             Self::Api { http_status, .. } => Some(*http_status),
             Self::Http(error) => error.status().map(|status| status.as_u16()),
-            Self::MissingApiKey | Self::NoCandidates { .. } => None,
+            Self::MissingApiKey | Self::Json(_) | Self::NoCandidates { .. } => None,
         }
     }
 

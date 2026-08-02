@@ -1,3 +1,8 @@
+use std::borrow::Cow;
+
+use futures::StreamExt as _;
+use llm_chain::streaming::{SseDecoder, SseEvent, frames};
+use llm_chain::traits::BoxStream;
 use llm_chain::{Parameters, traits};
 use secrecy::{ExposeSecret, SecretString};
 
@@ -148,20 +153,27 @@ impl Executor {
         self
     }
 
-    fn url(&self, model: &str) -> String {
+    fn url(&self, model: &str, method: &str) -> String {
         match &self.route {
             Route::GenerativeLanguage => format!(
-                "{}/{}/models/{}:generateContent",
-                self.base_url, API_VERSION, model
+                "{}/{}/models/{}:{}",
+                self.base_url, API_VERSION, model, method
             ),
             Route::Vertex { project, location } => format!(
-                "{}/{}/projects/{}/locations/{}/publishers/google/models/{}:generateContent",
-                self.base_url, VERTEX_API_VERSION, project, location, model
+                "{}/{}/projects/{}/locations/{}/publishers/google/models/{}:{}",
+                self.base_url, VERTEX_API_VERSION, project, location, model, method
             ),
             Route::VertexExpress => format!(
-                "{}/{}/publishers/google/models/{}:generateContent",
-                self.base_url, VERTEX_API_VERSION, model
+                "{}/{}/publishers/google/models/{}:{}",
+                self.base_url, VERTEX_API_VERSION, model, method
             ),
+        }
+    }
+
+    fn authorize(&self, request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+        match &self.auth {
+            Auth::ApiKey(api_key) => request.header("x-goog-api-key", api_key.expose_secret()),
+            Auth::Bearer(access_token) => request.bearer_auth(access_token.expose_secret()),
         }
     }
 
@@ -169,11 +181,9 @@ impl Executor {
         &self,
         request: &GenerateContentRequest,
     ) -> Result<GenerateContentResponse, GeminiError> {
-        let mut http_request = self.client.post(self.url(&request.model)).json(request);
-        http_request = match &self.auth {
-            Auth::ApiKey(api_key) => http_request.header("x-goog-api-key", api_key.expose_secret()),
-            Auth::Bearer(access_token) => http_request.bearer_auth(access_token.expose_secret()),
-        };
+        let http_request = self
+            .authorize(self.client.post(self.url(&request.model, "generateContent")))
+            .json(request);
         let response = http_request.send().await?;
 
         let status = response.status();
@@ -190,6 +200,37 @@ impl Executor {
             return Err(GeminiError::NoCandidates { reason });
         }
         Ok(response)
+    }
+
+    /// Sends the request to `streamGenerateContent?alt=sse` and returns the
+    /// stream of partial response chunks once the response headers arrive.
+    async fn send_stream(
+        &self,
+        request: &GenerateContentRequest,
+    ) -> Result<BoxStream<GenerateContentResponse, GeminiError>, GeminiError> {
+        let http_request = self
+            .authorize(
+                self.client
+                    .post(self.url(&request.model, "streamGenerateContent?alt=sse")),
+            )
+            .header("accept", "text/event-stream")
+            .json(request);
+        let response = http_request.send().await?;
+
+        let status = response.status();
+        if !status.is_success() {
+            return Err(parse_api_error(status.as_u16(), response.text().await?));
+        }
+        let bytes = response
+            .bytes_stream()
+            .map(|chunk| chunk.map_err(GeminiError::from));
+        let chunks = frames(SseDecoder::new(), bytes);
+        Ok(Box::pin(chunks.filter_map(|event| async move {
+            match event {
+                Ok(event) => parse_stream_chunk(event).transpose(),
+                Err(error) => Some(Err(error)),
+            }
+        })))
     }
 }
 
@@ -239,6 +280,35 @@ fn parse_api_error(http_status: u16, body: String) -> GeminiError {
     }
 }
 
+/// Maps one SSE event to a partial response chunk; `None` for empty
+/// keep-alives. A chunk carrying a top-level `error` object (how the API
+/// reports mid-stream failures) becomes a [`GeminiError::Api`].
+fn parse_stream_chunk(event: SseEvent) -> Result<Option<GenerateContentResponse>, GeminiError> {
+    if event.data.is_empty() {
+        return Ok(None);
+    }
+    let value: serde_json::Value = serde_json::from_str(&event.data)?;
+    if let Some(error) = value.get("error") {
+        return Err(GeminiError::Api {
+            http_status: error
+                .get("code")
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or(0) as u16,
+            status: error
+                .get("status")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("UNKNOWN")
+                .to_string(),
+            message: error
+                .get("message")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or_default()
+                .to_string(),
+        });
+    }
+    Ok(Some(serde_json::from_value(value)?))
+}
+
 impl traits::Executor for Executor {
     type Step = super::step::Step;
     type Output = GenerateContentResponse;
@@ -286,6 +356,32 @@ impl traits::Executor for Executor {
     }
 }
 
+impl traits::StreamingExecutor for Executor {
+    /// Streamed Gemini responses arrive as partial [`GenerateContentResponse`]
+    /// chunks rather than a separate event type.
+    type StreamEvent = GenerateContentResponse;
+
+    async fn execute_stream(
+        &self,
+        input: GenerateContentRequest,
+    ) -> Result<BoxStream<GenerateContentResponse, GeminiError>, GeminiError> {
+        self.send_stream(&input).await
+    }
+
+    fn text_delta(event: &GenerateContentResponse) -> Option<Cow<'_, str>> {
+        let content = event.candidates.first()?.content.as_ref()?;
+        let mut parts = content
+            .parts
+            .iter()
+            .filter(|part| !part.thought && !part.text.is_empty());
+        let first = parts.next()?;
+        match parts.next() {
+            None => Some(Cow::Borrowed(first.text.as_str())),
+            Some(_) => Some(Cow::Owned(content.text_parts())),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::types::{Candidate, FinishReason};
@@ -319,8 +415,17 @@ mod tests {
     fn consumer_api_urls_use_v1beta_models() {
         let exec = Executor::with_api_key("k");
         assert_eq!(
-            exec.url("gemini-3.6-flash"),
+            exec.url("gemini-3.6-flash", "generateContent"),
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent"
+        );
+    }
+
+    #[test]
+    fn streaming_urls_request_sse_framing() {
+        let exec = Executor::with_api_key("k");
+        assert_eq!(
+            exec.url("gemini-3.6-flash", "streamGenerateContent?alt=sse"),
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:streamGenerateContent?alt=sse"
         );
     }
 
@@ -328,7 +433,7 @@ mod tests {
     fn vertex_urls_are_project_and_location_scoped() {
         let exec = Executor::vertex("my-project", "europe-north1", "token");
         assert_eq!(
-            exec.url("gemini-3.6-flash"),
+            exec.url("gemini-3.6-flash", "generateContent"),
             "https://europe-north1-aiplatform.googleapis.com/v1/projects/my-project/locations/europe-north1/publishers/google/models/gemini-3.6-flash:generateContent"
         );
     }
@@ -337,7 +442,7 @@ mod tests {
     fn vertex_global_location_uses_the_global_endpoint() {
         let exec = Executor::vertex("my-project", "global", "token");
         assert_eq!(
-            exec.url("gemini-3.6-flash"),
+            exec.url("gemini-3.6-flash", "generateContent"),
             "https://aiplatform.googleapis.com/v1/projects/my-project/locations/global/publishers/google/models/gemini-3.6-flash:generateContent"
         );
     }
@@ -346,9 +451,32 @@ mod tests {
     fn vertex_express_urls_have_no_project_scoping() {
         let exec = Executor::vertex_express("k");
         assert_eq!(
-            exec.url("gemini-3.6-flash"),
+            exec.url("gemini-3.6-flash", "generateContent"),
             "https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-3.6-flash:generateContent"
         );
+    }
+
+    #[test]
+    fn stream_chunks_parse_and_stream_errors_map_to_api_errors() {
+        let event = |data: &str| SseEvent {
+            event: None,
+            data: data.to_string(),
+        };
+
+        let chunk = parse_stream_chunk(event(
+            r#"{"candidates":[{"content":{"role":"model","parts":[{"text":"Hej"}]}}]}"#,
+        ))
+        .unwrap()
+        .unwrap();
+        assert_eq!(chunk.text(), "Hej");
+
+        assert!(parse_stream_chunk(event("")).unwrap().is_none());
+
+        let error = parse_stream_chunk(event(
+            r#"{"error":{"code":429,"message":"slow down","status":"RESOURCE_EXHAUSTED"}}"#,
+        ))
+        .unwrap_err();
+        assert!(error.is_rate_limit());
     }
 
     #[test]
