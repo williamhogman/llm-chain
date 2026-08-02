@@ -43,10 +43,9 @@ async fn main() {
     let response = accumulator
         .into_response()
         .expect("stream ended before completion");
-    if let Some(usage) = response.usage_metadata {
-        println!(
-            "[{} prompt + {} candidate tokens]",
-            usage.prompt_token_count, usage.candidates_token_count
-        );
-    }
+    let usage = &response.usage_metadata;
+    println!(
+        "[{} prompt + {} candidate tokens]",
+        usage.prompt_token_count, usage.candidates_token_count
+    );
 }
