@@ -37,7 +37,8 @@ println!("{:?}", res);
 - **Ollama support**: Any model served by Ollama — locally (llama3.3, qwen3, gemma3, deepseek-r1, gpt-oss, …) with zero API keys, or via Ollama's cloud — with sampling controls, thinking, JSON mode/schemas and generation timings, on the same minimal built-in client.
 - **Hyperscaler front doors**: The same chains run against the clouds' managed AI surfaces — **AWS Bedrock** (the model-agnostic Converse API: Claude, Nova, Llama, Mistral and more behind one wire format), **Google Vertex AI** (project-scoped or Express Mode, same executor as Gemini) and **Azure OpenAI** (the OpenAI-compatible v1 surface with API-key or Microsoft Entra ID auth, same executor as OpenAI).
 - **Local models via llama.cpp**: Run LLaMA, Mistral, Qwen, Gemma and any other GGUF model fully offline, with optional GPU acceleration (CUDA, Metal, Vulkan).
-- **Tools**: Enhance your AI agents' capabilities by giving them access to various tools, such as running Bash commands or executing Python scripts, enabling more complex and powerful interactions.
+- **Tools**: Enhance your AI agents' capabilities by giving them access to various tools, such as running Bash commands or executing Python scripts — via each provider's native tool-calling API or via prompting, enabling more complex and powerful interactions.
+- **Streaming**: Stream responses token by token from every HTTP provider through one `StreamingExecutor` trait, with per-driver accumulators that rebuild the full response (text, reasoning, tool calls, token usage).
 - **Testing**: `llm-chain-mock` ships a deterministic mock executor (echo, scripted responses, forced failures, call recording) for unit-testing chains without network access.
 - **Typed errors, no panics**: Formatting, execution and chain errors are all surfaced as typed `Result`s.
 - **Modern async**: Built on native `async fn` in traits — no `async-trait` macro overhead.

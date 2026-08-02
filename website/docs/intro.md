@@ -16,6 +16,7 @@ sidebar_position: 0
 - **Every major provider**: First-class drivers for OpenAI (and Azure OpenAI), Anthropic, Google Gemini (and Vertex AI), AWS Bedrock, and Ollama — all sharing the same `Step`/`Executor`/`Options` architecture.
 - **Local inference**: Run GGUF models in-process via llama.cpp with the `llm-chain-llama` driver — no server, no API key.
 - **Native async, typed errors**: Built on Rust 2024 with native `async fn` in traits and typed errors end to end. No panics, no `async-trait`.
+- **Streaming**: Stream responses token by token from every HTTP provider through one `StreamingExecutor` trait — see [Streaming](streaming.md).
 - **Tools**: Enhance your AI agents' capabilities by giving them access to various tools, such as running Bash commands or executing Python scripts, enabling more complex and powerful interactions.
 - **Extensibility**: Designed with extensibility in mind, making it easy to integrate additional LLMs as the ecosystem grows.
 - **Community-driven**: We welcome and encourage contributions from the community to help improve and expand the capabilities of llm-chain.
