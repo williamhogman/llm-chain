@@ -16,10 +16,11 @@ crates were added.
 (commit `51cce6b`, the 0.1.x line) and is a from-scratch replacement of that
 architecture. The 0.3.0–0.13.0 versions published from upstream's divergent
 2023–2024 line (last publish: 0.13.0, November 2023; last commit: October
-2024) are not ancestors of this release, and their additions (streaming,
-vector stores, the `prompt!`/`executor!` macros) are not carried over — see
-the changelog entry for that line below. 0.14.0 is numbered above 0.13.0 so
-crates.io resolution moves forward.
+2024) are not ancestors of this release. Of that line's additions, streaming
+has been reimplemented on the new architecture; the vector stores and the
+`prompt!`/`executor!` macros are not carried over — see the changelog entry
+for that line below. 0.14.0 is numbered above 0.13.0 so crates.io resolution
+moves forward.
 
 **Breaking release.** See [`docs/MIGRATION-0.14.md`](docs/MIGRATION-0.14.md)
 for a step-by-step upgrade guide from both 0.1.x and 0.13.x.
@@ -43,6 +44,10 @@ for a step-by-step upgrade guide from both 0.1.x and 0.13.x.
 - **First-party tool calling** — native function/tool-use support on every
   HTTP provider, plus a provider-neutral bridge in `llm-chain-tools`
   (`tool_schemas()` / `invoke_json()`).
+- **Token-by-token streaming** — a unified `StreamingExecutor` trait across
+  all five HTTP providers, with typed per-provider events and accumulators
+  that rebuild the full response (SSE, NDJSON and AWS's binary event stream
+  all decoded natively).
 - **Credential hygiene** — every API key and token is held as
   `secrecy::SecretString`: redacted from `Debug`, zeroized on drop.
 
