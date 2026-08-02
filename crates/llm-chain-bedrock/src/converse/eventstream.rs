@@ -243,7 +243,7 @@ impl EventStreamDecoder {
         if crc32fast::hash(&self.buffer[0..8]) != prelude_crc {
             return Some(Err(EventStreamError::PreludeCrc));
         }
-        if total < OVERHEAD_LEN || total > MAX_FRAME_LEN {
+        if !(OVERHEAD_LEN..=MAX_FRAME_LEN).contains(&total) {
             return Some(Err(EventStreamError::Malformed(
                 "total length out of range",
             )));
