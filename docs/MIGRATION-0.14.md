@@ -168,6 +168,33 @@ tool-calling API** instead of YAML prompting —
 `ToolCollection::invoke_json()` executes the calls the model makes. See the
 `native_agent` example and the website's *Tool calling* page.
 
+## Streaming
+
+New in 0.14: every HTTP provider implements
+`llm_chain::traits::StreamingExecutor`. `execute_stream()` resolves to a
+stream of typed events as soon as the model starts answering,
+`text_delta()` extracts answer text provider-agnostically, and each driver's
+`ResponseAccumulator` folds the events back into the regular response type:
+
+```rust
+use futures::StreamExt as _;
+use llm_chain::traits::StreamingExecutor as _;
+
+let mut stream = exec.execute_stream(step.format(&parameters)?).await?;
+let mut acc = ResponseAccumulator::new();
+while let Some(event) = stream.next().await {
+    let event = event?;
+    if let Some(text) = Executor::text_delta(&event) {
+        print!("{text}");
+    }
+    acc.apply(&event);
+}
+let response = acc.into_response();
+```
+
+See the website's *Streaming* page and each crate's
+`*_streaming_generation` example.
+
 ## New providers
 
 Anthropic, Gemini (+ Vertex AI), Bedrock and Ollama are new crates that
@@ -188,7 +215,7 @@ Expect a rewrite of call sites rather than a mechanical migration:
 | `executor!(chatgpt)` macro | `Executor::new()` / `Executor::with_api_key(...)` per provider crate |
 | Unified `Options` map (`OptionsBuilder`) | Typed per-provider `Options` builders (compile-time checked) |
 | `chains::conversation::Chain` | Not carried over — model a conversation as a sequential chain, or file an issue |
-| SSE streaming (`stream` option) | Not yet available in 0.14.0 (planned) |
+| SSE streaming (`stream` option) | Reimplemented: `StreamingExecutor::execute_stream()` yields typed per-provider events; each driver's `ResponseAccumulator` rebuilds the full response. See the website's *Streaming* page and the `*_streaming_generation` examples |
 | `llm-chain-mock` | Carried over — rebuilt on the 0.14 architecture: Echo, Scripted and Failing behaviours with call recording (`Executor::calls()`) |
 | `llm-chain-local` | Not carried over — `llm-chain-llama` (GGUF) covers local inference |
 | `llm-chain-qdrant` / `-milvus` / `-hnsw` vector stores | Not carried over — use the vector-store clients directly |
@@ -197,6 +224,7 @@ Expect a rewrite of call sites rather than a mechanical migration:
 
 What you gain over 0.13.x: Rust 2024 / native async traits (no
 `async-trait`), typed errors end to end, 2026 model lineups for five hosted
-providers plus Azure/Vertex/Bedrock front doors, `SecretString` credential
-hygiene, and maintained dependencies throughout (`thiserror` 2,
+providers plus Azure/Vertex/Bedrock front doors, a unified typed streaming
+API (`StreamingExecutor` with per-driver accumulators), `SecretString`
+credential hygiene, and maintained dependencies throughout (`thiserror` 2,
 `serde_yaml_ng`, `llama-cpp-2`, `reqwest` 0.13).
