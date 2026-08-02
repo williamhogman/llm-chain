@@ -284,7 +284,10 @@ pub struct ChatRequest {
     pub model: String,
     /// The conversation so far, including any system message.
     pub messages: Vec<Message>,
-    /// Whether to stream the response. This crate always sends `false`.
+    /// Whether to stream the response. [`Executor::execute`](llm_chain::traits::Executor::execute)
+    /// sends `false`;
+    /// [`execute_stream`](llm_chain::traits::StreamingExecutor::execute_stream)
+    /// sends `true`.
     pub stream: bool,
     /// Thinking control for reasoning-capable models.
     #[serde(default, skip_serializing_if = "Option::is_none")]

@@ -26,6 +26,9 @@ pub enum OllamaError {
     /// The HTTP request failed (TLS, timeout, or invalid response body).
     #[error(transparent)]
     Http(#[from] reqwest::Error),
+    /// A streamed chunk could not be deserialized.
+    #[error("invalid JSON payload: {0}")]
+    Json(#[from] serde_json::Error),
     /// The server returned an error response.
     ///
     /// A 404 with a "model not found" message means the model has not been
@@ -37,6 +40,9 @@ pub enum OllamaError {
         /// The error message, e.g. `model 'nope' not found, try pulling it first`.
         message: String,
     },
+    /// The server reported an error mid-stream.
+    #[error("ollama stream error: {0}")]
+    StreamError(String),
 }
 
 impl OllamaError {
@@ -45,7 +51,7 @@ impl OllamaError {
         match self {
             Self::Api { status, .. } => Some(*status),
             Self::Http(error) => error.status().map(|status| status.as_u16()),
-            Self::Connection { .. } => None,
+            Self::Connection { .. } | Self::Json(_) | Self::StreamError(_) => None,
         }
     }
 
