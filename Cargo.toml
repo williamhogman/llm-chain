@@ -16,6 +16,7 @@ repository = "https://github.com/sobelio/llm-chain/"
 [workspace.dependencies]
 llm-chain = { path = "crates/llm-chain", version = "0.14.0" }
 async-openai = { version = "0.41", features = ["chat-completion"] }
+crc32fast = "1.4"
 futures = "0.3.31"
 llama-cpp-2 = "0.1.153"
 percent-encoding = "2.3"

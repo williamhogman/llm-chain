@@ -18,6 +18,8 @@ default = ["serialization"]
 serialization = ["llm-chain/serialization"]
 
 [dependencies]
+crc32fast.workspace = true
+futures.workspace = true
 llm-chain.workspace = true
 percent-encoding.workspace = true
 reqwest.workspace = true
