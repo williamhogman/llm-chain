@@ -149,7 +149,9 @@ for a step-by-step upgrade guide from both 0.1.x and 0.13.x.
 #### Tooling & CI
 
 - Mock-API integration test suites for Anthropic, Gemini, Bedrock and Ollama
-  asserting wire format, auth headers and error mapping — no API keys needed.
+  asserting wire format, auth headers and error mapping — no API keys needed
+  — including streaming suites that replay SSE, NDJSON and chunked binary
+  event-stream responses (mid-stream exceptions included).
 - End-to-end GGUF inference test for `llm-chain-llama` (tiny stories260K
   model).
 - CI: fmt + clippy (`-D warnings`) + multi-OS test matrix (Ubuntu, macOS) +
@@ -195,11 +197,11 @@ for a step-by-step upgrade guide from both 0.1.x and 0.13.x.
 - OpenAI `seed` request option (deprecated upstream).
 - Relative to the 0.13.x line (not ancestors of this release, see the
   lineage note): the `prompt!`/`executor!` macros, unified `Options` map,
-  SSE streaming, conversation chains, and the `llm-chain-local`,
+  conversation chains, and the `llm-chain-local`,
   `llm-chain-macros`, `llm-chain-sagemaker-endpoint`,
   `llm-chain-gemma(-sys)`, `llm-chain-qdrant`, `llm-chain-milvus` and
   `llm-chain-hnsw` crates. (`llm-chain-mock` is carried over, rebuilt on the
-  0.14 architecture.)
+  0.14 architecture; streaming is reimplemented via `StreamingExecutor`.)
 
 ## [0.3.0]–[0.13.0] - 2023-2024
 
