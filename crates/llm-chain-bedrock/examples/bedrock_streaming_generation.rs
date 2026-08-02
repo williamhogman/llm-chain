@@ -44,10 +44,8 @@ async fn main() {
     let response = accumulator
         .into_response()
         .expect("stream ended before completion");
-    if let Some(usage) = response.usage {
-        println!(
-            "[{} input + {} output tokens]",
-            usage.input_tokens, usage.output_tokens
-        );
-    }
+    println!(
+        "[{} input + {} output tokens]",
+        response.usage.input_tokens, response.usage.output_tokens
+    );
 }
