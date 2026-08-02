@@ -1,8 +1,15 @@
-use llm_chain::{Parameters, traits};
+use std::borrow::Cow;
+
+use futures::StreamExt as _;
+use llm_chain::streaming::frames;
+use llm_chain::traits::{self, BoxStream};
+use llm_chain::Parameters;
 use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, utf8_percent_encode};
 use secrecy::{ExposeSecret, SecretString};
 
 use super::error::BedrockError;
+use super::eventstream::{EventStreamDecoder, EventStreamMessage};
+use super::stream::{StreamEvent, parse_event};
 use super::types::{ContentBlock, ConverseRequest, ConverseResponse, Message, Metrics, Role};
 
 /// The environment variable holding the Bedrock API key (bearer token).
@@ -119,6 +126,94 @@ impl Executor {
             ))
         }
     }
+
+    /// Sends the request to the `converse-stream` route and returns the typed
+    /// event stream once the response headers arrive.
+    async fn send_stream(
+        &self,
+        request: &ConverseRequest,
+    ) -> Result<BoxStream<StreamEvent, BedrockError>, BedrockError> {
+        let response = self
+            .client
+            .post(format!(
+                "{}/model/{}/converse-stream",
+                self.base_url,
+                utf8_percent_encode(&request.model_id, MODEL_ID_ENCODE_SET)
+            ))
+            .bearer_auth(self.bearer_token.expose_secret())
+            .json(request)
+            .send()
+            .await?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_type = response
+                .headers()
+                .get("x-amzn-errortype")
+                .and_then(|value| value.to_str().ok())
+                .map(|value| value.split(':').next().unwrap_or(value).to_string());
+            return Err(parse_api_error(
+                status.as_u16(),
+                error_type,
+                response.text().await?,
+            ));
+        }
+        let bytes = response
+            .bytes_stream()
+            .map(|chunk| chunk.map_err(BedrockError::from));
+        let messages = frames(EventStreamDecoder::new(), bytes);
+        Ok(Box::pin(messages.filter_map(|message| async move {
+            match message {
+                Ok(Ok(message)) => map_stream_message(message).transpose(),
+                Ok(Err(framing_error)) => Some(Err(framing_error.into())),
+                Err(http_error) => Some(Err(http_error)),
+            }
+        })))
+    }
+}
+
+/// Maps one decoded event stream frame to a typed event.
+///
+/// Events parse by their `:event-type` header; exception frames (mid-stream
+/// throttling, validation failures) become [`BedrockError::StreamException`];
+/// frames this crate does not recognize are skipped.
+fn map_stream_message(message: EventStreamMessage) -> Result<Option<StreamEvent>, BedrockError> {
+    match message.message_type() {
+        Some("event") | None => {
+            let Some(event_type) = message.event_type() else {
+                return Ok(None);
+            };
+            Ok(Some(parse_event(event_type, &message.payload)?))
+        }
+        Some("exception") => {
+            #[derive(serde::Deserialize)]
+            struct ExceptionBody {
+                #[serde(alias = "Message")]
+                message: String,
+            }
+            let text = serde_json::from_slice::<ExceptionBody>(&message.payload)
+                .map(|body| body.message)
+                .unwrap_or_else(|_| String::from_utf8_lossy(&message.payload).into_owned());
+            Err(BedrockError::StreamException {
+                exception_type: message
+                    .exception_type()
+                    .unwrap_or("UnknownException")
+                    .to_string(),
+                message: text,
+            })
+        }
+        // Protocol-level `error` frames carry their details in headers.
+        Some(other) => Err(BedrockError::StreamException {
+            exception_type: message
+                .header_str(":error-code")
+                .unwrap_or(other)
+                .to_string(),
+            message: message
+                .header_str(":error-message")
+                .map(str::to_string)
+                .unwrap_or_else(|| String::from_utf8_lossy(&message.payload).into_owned()),
+        }),
+    }
 }
 
 // Manual Debug: keeps the output stable and the token visibly redacted.
@@ -207,6 +302,21 @@ impl traits::Executor for Executor {
         };
         combined.metrics = merge_metrics(output.metrics, other.metrics);
         combined
+    }
+}
+
+impl traits::StreamingExecutor for Executor {
+    type StreamEvent = StreamEvent;
+
+    async fn execute_stream(
+        &self,
+        input: ConverseRequest,
+    ) -> Result<BoxStream<StreamEvent, BedrockError>, BedrockError> {
+        self.send_stream(&input).await
+    }
+
+    fn text_delta(event: &StreamEvent) -> Option<Cow<'_, str>> {
+        event.text_delta().map(Cow::Borrowed)
     }
 }
 

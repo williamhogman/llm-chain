@@ -1,6 +1,8 @@
 use llm_chain::PromptTemplateError;
 use thiserror::Error;
 
+use super::eventstream::EventStreamError;
+
 /// An error that occurred while formatting a chat prompt into a Converse API request.
 #[derive(Debug, Error)]
 pub enum FormatError {
@@ -31,6 +33,22 @@ pub enum BedrockError {
         /// The human-readable error message.
         message: String,
     },
+    /// A streamed response carried an exception event, e.g. throttling that
+    /// struck mid-generation.
+    #[error("bedrock stream exception ({exception_type}): {message}")]
+    StreamException {
+        /// The exception name from the `:exception-type` frame header,
+        /// e.g. `throttlingException` or `modelStreamErrorException`.
+        exception_type: String,
+        /// The human-readable error message.
+        message: String,
+    },
+    /// The binary event stream framing was corrupt or truncated.
+    #[error(transparent)]
+    Stream(#[from] EventStreamError),
+    /// A streamed event payload was not the JSON the event type promises.
+    #[error("invalid JSON in stream payload: {0}")]
+    Json(#[from] serde_json::Error),
 }
 
 impl BedrockError {
@@ -39,7 +57,10 @@ impl BedrockError {
         match self {
             Self::Api { status, .. } => Some(*status),
             Self::Http(error) => error.status().map(|status| status.as_u16()),
-            Self::MissingBearerToken => None,
+            Self::MissingBearerToken
+            | Self::StreamException { .. }
+            | Self::Stream(_)
+            | Self::Json(_) => None,
         }
     }
 
@@ -50,6 +71,9 @@ impl BedrockError {
             Self::Api {
                 status, error_type, ..
             } => *status == 429 || error_type == "ThrottlingException",
+            Self::StreamException { exception_type, .. } => {
+                exception_type.eq_ignore_ascii_case("throttlingException")
+            }
             _ => self.status() == Some(429),
         }
     }
@@ -67,10 +91,22 @@ mod tests {
         }
     }
 
+    fn stream_exception(exception_type: &str) -> BedrockError {
+        BedrockError::StreamException {
+            exception_type: exception_type.to_string(),
+            message: "m".to_string(),
+        }
+    }
+
     #[test]
     fn status_is_exposed_for_api_errors() {
         assert_eq!(api_error(400, "ValidationException").status(), Some(400));
         assert_eq!(BedrockError::MissingBearerToken.status(), None);
+        assert_eq!(stream_exception("throttlingException").status(), None);
+        assert_eq!(
+            BedrockError::Stream(EventStreamError::MessageCrc).status(),
+            None
+        );
     }
 
     #[test]
@@ -79,5 +115,13 @@ mod tests {
         assert!(api_error(400, "ThrottlingException").is_rate_limit());
         assert!(!api_error(400, "ValidationException").is_rate_limit());
         assert!(!BedrockError::MissingBearerToken.is_rate_limit());
+    }
+
+    #[test]
+    fn mid_stream_throttling_is_retryable() {
+        assert!(stream_exception("throttlingException").is_rate_limit());
+        assert!(stream_exception("ThrottlingException").is_rate_limit());
+        assert!(!stream_exception("validationException").is_rate_limit());
+        assert!(!BedrockError::Stream(EventStreamError::MessageCrc).is_rate_limit());
     }
 }
