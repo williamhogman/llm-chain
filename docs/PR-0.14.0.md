@@ -170,12 +170,12 @@ llama.cpp FFI with a git submodule) are deprecated or unmaintained.
 
 ### Numbers
 
-- Against the `51cce6b` fork point: 215 files changed, ~36,900 insertions,
+- Against the `51cce6b` fork point: ~227 files changed, ~41,000 insertions,
   ~2,600 deletions (including the ported website and the committed
   `Cargo.lock` / `package-lock.json` lockfiles).
-- 23 test suites, 255 unit/integration/doc tests — including mock-API wire
-  format suites for Anthropic/Gemini/Bedrock/Ollama (no API keys needed) and
-  a real GGUF end-to-end inference test.
+- 23 test suites, 316 unit/integration/doc tests — including mock-API wire
+  format and streaming suites for Anthropic/Gemini/Bedrock/Ollama (no API
+  keys needed) and a real GGUF end-to-end inference test.
 
 
 ### Versioning
@@ -229,9 +229,10 @@ squashing:
 7. Bedrock: new crate
 8. LLaMA: rewrite on llama-cpp-2
 9. Mock: rebuilt on the 0.14 architecture
-10. Tools: fallible trait, extraction hardening
-11. Website: Docusaurus 3 port, docs rewritten for 0.14
-12. CI/CD, docs, changelog, release tooling
+10. Tools: fallible trait, extraction hardening, native tool-calling bridge
+11. Streaming: StreamingExecutor, wire decoders, per-driver accumulators
+12. Website: Docusaurus 3 port, docs rewritten for 0.14
+13. CI/CD, docs, changelog, release tooling
 
 
 ### Notes for reviewers
