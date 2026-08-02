@@ -96,6 +96,14 @@ for a step-by-step upgrade guide from both 0.1.x and 0.13.x.
   `{{`/`}}` escape sequences.
 - `chains::sequential::Chain`: `push()`, `len()`, `is_empty()`, `steps()`,
   `FromIterator`, `Extend`, `IntoIterator`.
+- `traits::StreamingExecutor`: the shared contract for token-by-token
+  streaming — `execute_stream()` resolves to a `BoxStream` of typed
+  per-provider events once the model starts answering, and `text_delta()`
+  extracts answer text provider-agnostically.
+- `streaming` module: sans-IO wire decoders shared by the drivers —
+  `SseDecoder` (Server-Sent Events), `NdjsonDecoder` (newline-delimited
+  JSON), and the `FrameDecoder` trait with the `frames()` adapter for
+  custom framings.
 - `async` cargo feature: async file I/O for chain serialization.
 
 #### Providers
@@ -124,9 +132,19 @@ for a step-by-step upgrade guide from both 0.1.x and 0.13.x.
   `tool_schemas()` generates a JSON Schema per tool and `invoke_json()`
   executes the calls the model makes. Runnable `native_agent` example and a
   new website docs page.
+- **Streaming on every HTTP provider**: each driver implements
+  `StreamingExecutor` with events mirroring its wire protocol — OpenAI
+  `chat.completion.chunk`s (with `stream_options.include_usage` on by
+  default), Anthropic SSE events, Gemini `streamGenerateContent?alt=sse`
+  chunks, Bedrock's binary `converse-stream` event stream (CRC-validated
+  decoder built in) and Ollama NDJSON chunks. Each driver ships a
+  `ResponseAccumulator` folding the events back into its regular response
+  type (text, reasoning, tool calls, usage), plus a runnable
+  `*_streaming_generation` example.
 - **All HTTP providers**: `.status()` and `.is_rate_limit()` on error types
   for uniform retry/backoff handling across providers (429s, Anthropic
-  `overloaded_error`, Gemini `RESOURCE_EXHAUSTED`, Bedrock throttling).
+  `overloaded_error`, Gemini `RESOURCE_EXHAUSTED`, Bedrock throttling),
+  including exceptions raised mid-stream.
 
 #### Tooling & CI
 
