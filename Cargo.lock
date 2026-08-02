@@ -956,6 +956,7 @@ dependencies = [
 name = "llm-chain-gemini"
 version = "0.14.0"
 dependencies = [
+ "futures",
  "llm-chain",
  "reqwest",
  "secrecy",
