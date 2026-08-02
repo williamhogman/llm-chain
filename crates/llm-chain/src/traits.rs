@@ -56,3 +56,61 @@ pub trait Executor {
     /// Combines two outputs into a single output, used by map-reduce chains.
     fn combine_outputs(output: &Self::Output, other: &Self::Output) -> Self::Output;
 }
+
+/// A boxed stream of results, as returned by
+/// [`StreamingExecutor::execute_stream`].
+///
+/// Boxed because every driver's stream is an opaque chain of adapters over
+/// its HTTP response; a nameable type keeps the trait object-safe to hold
+/// and pass around.
+pub type BoxStream<T, E> = std::pin::Pin<Box<dyn futures::Stream<Item = Result<T, E>> + Send>>;
+
+/// An executor that can stream a response while the model generates it.
+///
+/// Where [`Executor::execute`] buffers the whole response,
+/// [`execute_stream`](StreamingExecutor::execute_stream) resolves as soon as
+/// the model starts answering and yields typed events as they arrive. Each
+/// driver keeps its own event type ([`StreamEvent`](StreamingExecutor::StreamEvent))
+/// mirroring its provider's wire protocol, and offers an accumulator to fold
+/// the events back into the driver's regular
+/// [`Output`](Executor::Output) when both live output and the final response
+/// are wanted.
+///
+/// [`text_delta`](StreamingExecutor::text_delta) extracts the newly generated
+/// text from an event, so provider-agnostic code can print tokens without
+/// knowing the event type:
+///
+/// ```ignore
+/// use futures::StreamExt as _;
+/// use llm_chain::traits::StreamingExecutor;
+///
+/// let mut stream = executor.execute_stream(step.format(&parameters)?).await?;
+/// while let Some(event) = stream.next().await {
+///     if let Some(text) = E::text_delta(&event?) {
+///         print!("{text}");
+///     }
+/// }
+/// ```
+#[trait_variant::make(Send)]
+pub trait StreamingExecutor: Executor {
+    /// The event type yielded while a response is being generated, mirroring
+    /// the provider's streaming wire protocol.
+    type StreamEvent: Send + 'static;
+
+    /// Starts executing the formatted input, resolving to a stream of events
+    /// once the model begins answering.
+    ///
+    /// Errors that occur before any output is produced (bad credentials,
+    /// unknown model, rate limits) are returned directly; errors during
+    /// generation are yielded inside the stream, which then ends.
+    async fn execute_stream(
+        &self,
+        input: <<Self as Executor>::Step as Step>::Output,
+    ) -> Result<BoxStream<Self::StreamEvent, <Self as Executor>::Error>, <Self as Executor>::Error>;
+
+    /// The newly generated answer text carried by an event, if any.
+    ///
+    /// Returns `None` for bookkeeping events (message boundaries, usage
+    /// reports, pings) and for non-answer output such as reasoning deltas.
+    fn text_delta(event: &Self::StreamEvent) -> Option<std::borrow::Cow<'_, str>>;
+}
