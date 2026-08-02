@@ -42,7 +42,7 @@ are best revisited against 2026-era store APIs rather than ported.
 ## Title
 
 ```
-Modernize llm-chain for 2026: edition 2024, native async, 5 new providers, hyperscalers (v0.14.0)
+Modernize llm-chain for 2026: edition 2024, native async, 5 new providers, streaming, hyperscalers (v0.14.0)
 ```
 
 ## Body
