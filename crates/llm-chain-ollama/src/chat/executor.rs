@@ -254,8 +254,7 @@ impl traits::StreamingExecutor for Executor {
     }
 
     fn text_delta(event: &ChatResponse) -> Option<Cow<'_, str>> {
-        (!event.message.content.is_empty())
-            .then_some(Cow::Borrowed(event.message.content.as_str()))
+        (!event.message.content.is_empty()).then_some(Cow::Borrowed(event.message.content.as_str()))
     }
 }
 
