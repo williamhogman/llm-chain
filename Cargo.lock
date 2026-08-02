@@ -1009,6 +1009,7 @@ name = "llm-chain-openai"
 version = "0.14.0"
 dependencies = [
  "async-openai",
+ "futures",
  "llm-chain",
  "reqwest",
  "secrecy",
