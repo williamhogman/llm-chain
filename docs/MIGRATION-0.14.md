@@ -197,7 +197,8 @@ See the website's *Streaming* page and each crate's
 
 ## New providers
 
-Anthropic, Gemini (+ Vertex AI), Bedrock and Ollama are new crates that
+Anthropic, Gemini (+ Vertex AI), Bedrock, Ollama and the Lovable AI Gateway
+are new crates that
 follow the exact same `Step` / `Executor` / `Options` shape — switching
 providers is a matter of swapping imports. See the
 [README](README.md) for a getting-started example per provider.
@@ -223,7 +224,7 @@ Expect a rewrite of call sites rather than a mechanical migration:
 | `llm-chain-gemma(-sys)` | Superseded by `llm-chain-llama` (Gemma GGUF builds) or `llm-chain-gemini` |
 
 What you gain over 0.13.x: Rust 2024 / native async traits (no
-`async-trait`), typed errors end to end, 2026 model lineups for five hosted
+`async-trait`), typed errors end to end, 2026 model lineups for six hosted
 providers plus Azure/Vertex/Bedrock front doors, a unified typed streaming
 API (`StreamingExecutor` with per-driver accumulators), `SecretString`
 credential hygiene, and maintained dependencies throughout (`thiserror` 2,

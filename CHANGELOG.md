@@ -9,7 +9,7 @@ and all crates in the workspace share a single version number and adhere to
 ## [0.14.0] - 2026-07-30
 
 A ground-up modernization of the entire workspace. Every crate was brought up
-to the current state of the Rust and LLM ecosystems, and five new provider
+to the current state of the Rust and LLM ecosystems, and six new provider
 crates were added.
 
 **Lineage note.** This release was developed from the April 2023 tree
@@ -35,9 +35,9 @@ for a step-by-step upgrade guide from both 0.1.x and 0.13.x.
 - **Typed errors, no panics** — formatting, execution and chain runs all
   return `Result`s with dedicated error types (`PromptTemplateError`,
   per-provider errors, `ChainError`).
-- **Four new HTTP providers** — Anthropic, Google Gemini, Amazon Bedrock and
-  Ollama, all on a minimal built-in client (`reqwest` 0.13 + rustls, no
-  heavyweight SDKs).
+- **Five new HTTP providers** — Anthropic, Google Gemini, Amazon Bedrock,
+  Ollama and the Lovable AI Gateway, all on a minimal built-in client
+  (`reqwest` 0.13 + rustls, no heavyweight SDKs).
 - **Hyperscaler front doors** — Azure OpenAI (OpenAI-compatible v1 surface),
   Google Vertex AI (project-scoped and Express Mode) and AWS Bedrock
   (Converse API).
@@ -45,7 +45,7 @@ for a step-by-step upgrade guide from both 0.1.x and 0.13.x.
   HTTP provider, plus a provider-neutral bridge in `llm-chain-tools`
   (`tool_schemas()` / `invoke_json()`).
 - **Token-by-token streaming** — a unified `StreamingExecutor` trait across
-  all five HTTP providers, with typed per-provider events and accumulators
+  all six HTTP providers, with typed per-provider events and accumulators
   that rebuild the full response (SSE, NDJSON and AWS's binary event stream
   all decoded natively).
 - **Credential hygiene** — every API key and token is held as
@@ -78,6 +78,16 @@ for a step-by-step upgrade guide from both 0.1.x and 0.13.x.
   `qwen3`); `Think` levels for reasoning models; `Format` for JSON mode and
   full JSON-schema constraints; `keep_alive`; generation timings merged
   across chain steps.
+- **`llm-chain-lovable`** — the Lovable AI Gateway
+  (`ai.gateway.lovable.dev`): one OpenAI-compatible surface over frontier
+  models from multiple vendors (default `google/gemini-3.6-flash`;
+  `openai/gpt-5.5`, …) behind a single `LOVABLE_API_KEY`
+  (`Lovable-API-Key` header auth). Unified reasoning controls
+  (`reasoning_effort` for OpenAI models, a `Reasoning` effort/exclude object
+  for the rest) with reasoning text surfaced on the response; JSON mode and
+  strict JSON-schema outputs; run correlation via the
+  `x-lovable-aig-run-id` response header; typed rate-limit (429) and
+  credits-exhausted (402) errors.
 - **`llm-chain-mock`** — deterministic in-process executor for testing
   chains without network access: Echo, Scripted and Failing behaviours, with
   every executed prompt recorded and available via `Executor::calls()`.
@@ -123,7 +133,8 @@ for a step-by-step upgrade guide from both 0.1.x and 0.13.x.
   both `api-key` and Microsoft Entra ID bearer auth.
 - **Native tool calling on every HTTP provider**: OpenAI function tools,
   Anthropic `tool_use`/`tool_result` content blocks, Gemini function
-  declarations, Bedrock Converse `toolConfig` and Ollama tools. Each driver
+  declarations, Bedrock Converse `toolConfig`, Ollama tools and Lovable
+  Gateway function tools (with optional strict schemas). Each driver
   gains `Options::with_tools` (and `with_tool_choice` where the API has one),
   response accessors for the calls the model made (`function_calls`,
   `tool_uses`, …) and continuation helpers for sending results back
@@ -137,19 +148,22 @@ for a step-by-step upgrade guide from both 0.1.x and 0.13.x.
   `chat.completion.chunk`s (with `stream_options.include_usage` on by
   default), Anthropic SSE events, Gemini `streamGenerateContent?alt=sse`
   chunks, Bedrock's binary `converse-stream` event stream (CRC-validated
-  decoder built in) and Ollama NDJSON chunks. Each driver ships a
+  decoder built in), Ollama NDJSON chunks and Lovable Gateway SSE chunks.
+  Each driver ships a
   `ResponseAccumulator` folding the events back into its regular response
   type (text, reasoning, tool calls, usage), plus a runnable
   `*_streaming_generation` example.
 - **All HTTP providers**: `.status()` and `.is_rate_limit()` on error types
   for uniform retry/backoff handling across providers (429s, Anthropic
-  `overloaded_error`, Gemini `RESOURCE_EXHAUSTED`, Bedrock throttling),
-  including exceptions raised mid-stream.
+  `overloaded_error`, Gemini `RESOURCE_EXHAUSTED`, Bedrock throttling,
+  Lovable rate limits and 402 credits-exhausted), including exceptions
+  raised mid-stream.
 
 #### Tooling & CI
 
-- Mock-API integration test suites for Anthropic, Gemini, Bedrock and Ollama
-  asserting wire format, auth headers and error mapping — no API keys needed
+- Mock-API integration test suites for Anthropic, Gemini, Bedrock, Ollama
+  and the Lovable Gateway asserting wire format, auth headers and error
+  mapping — no API keys needed
   — including streaming suites that replay SSE, NDJSON and chunked binary
   event-stream responses (mid-stream exceptions included).
 - End-to-end GGUF inference test for `llm-chain-llama` (tiny stories260K

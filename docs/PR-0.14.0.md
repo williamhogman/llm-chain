@@ -101,6 +101,9 @@ llama.cpp FFI with a git submodule) are deprecated or unmaintained.
   Claude, Nova, Llama, Mistral, …; Bedrock API-key auth; regional endpoints.
 - `llm-chain-ollama` — local (`OLLAMA_HOST`) or Ollama cloud; think levels;
   JSON schema outputs; generation timings.
+- `llm-chain-lovable` — the **Lovable AI Gateway**: one OpenAI-compatible
+  surface over multi-vendor frontier models; unified reasoning controls;
+  strict JSON-schema outputs; run-id observability; typed 429/402 errors.
 
 **LLaMA (`llm-chain-llama`)**
 - Rewritten on the maintained `llama-cpp-2` bindings: GGUF models, modern
@@ -123,7 +126,7 @@ llama.cpp FFI with a git submodule) are deprecated or unmaintained.
   calls — see the runnable `native_agent` example and the new "Tool calling"
   docs page.
 
-**Streaming (all five HTTP providers)**
+**Streaming (all six HTTP providers)**
 - Unified `StreamingExecutor` trait in core: `execute_stream()` resolves to
   a `BoxStream` of typed per-provider events as soon as the model starts
   answering; `text_delta()` extracts answer text provider-agnostically.
@@ -227,12 +230,13 @@ squashing:
 5. Gemini: new crate + Vertex AI
 6. Ollama: new crate
 7. Bedrock: new crate
-8. LLaMA: rewrite on llama-cpp-2
-9. Mock: rebuilt on the 0.14 architecture
-10. Tools: fallible trait, extraction hardening, native tool-calling bridge
-11. Streaming: StreamingExecutor, wire decoders, per-driver accumulators
-12. Website: Docusaurus 3 port, docs rewritten for 0.14
-13. CI/CD, docs, changelog, release tooling
+8. Lovable AI Gateway: new crate
+9. LLaMA: rewrite on llama-cpp-2
+10. Mock: rebuilt on the 0.14 architecture
+11. Tools: fallible trait, extraction hardening, native tool-calling bridge
+12. Streaming: StreamingExecutor, wire decoders, per-driver accumulators
+13. Website: Docusaurus 3 port, docs rewritten for 0.14
+14. CI/CD, docs, changelog, release tooling
 
 
 ### Notes for reviewers

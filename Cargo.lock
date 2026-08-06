@@ -990,6 +990,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "llm-chain-lovable"
+version = "0.14.0"
+dependencies = [
+ "futures",
+ "llm-chain",
+ "reqwest",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "serde_yaml_ng",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "llm-chain-mock"
 version = "0.14.0"
 dependencies = [

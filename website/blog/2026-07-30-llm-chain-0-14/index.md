@@ -2,7 +2,7 @@
 slug: llm-chain-0-14
 title: "llm-chain 0.14: Rust 2024, native async, and every major provider"
 authors: [whn]
-tags: [llm-chain, release, rust, openai, anthropic, gemini, bedrock, ollama]
+tags: [llm-chain, release, rust, openai, anthropic, gemini, bedrock, ollama, lovable]
 ---
 
 llm-chain is back. Version 0.14.0 is a ground-up modernization of the library for the Rust and LLM ecosystems of 2026 — and the biggest release in the project's history.
@@ -11,7 +11,7 @@ llm-chain is back. Version 0.14.0 is a ground-up modernization of the library fo
 
 ## What's new
 
-### Six drivers, one architecture
+### Seven drivers, one architecture
 
 Every provider now follows the exact same `Step` / `Executor` / `Options` shape, so switching providers is a matter of swapping imports:
 
@@ -20,6 +20,7 @@ Every provider now follows the exact same `Step` / `Executor` / `Options` shape,
 - **`llm-chain-gemini`** — Google's Gemini API (Gemini 3.x) with thinking levels and JSON mode, plus **Vertex AI** routes. *New.*
 - **`llm-chain-bedrock`** — Amazon Bedrock's Converse API: one wire format for Claude, Nova, Llama, Mistral and more. *New.*
 - **`llm-chain-ollama`** — local or cloud Ollama, with think levels and JSON-schema outputs. *New.*
+- **`llm-chain-lovable`** — the Lovable AI Gateway: one OpenAI-compatible surface over frontier models from multiple vendors, with unified reasoning controls and per-request run ids. *New.*
 - **`llm-chain-llama`** — rewritten on the maintained `llama-cpp-2` bindings: loads GGUF models in-process, with a modern sampling pipeline and `cuda`/`metal`/`vulkan` GPU offload.
 
 Plus **`llm-chain-mock`**, a deterministic executor for unit-testing chains without network access.
@@ -34,11 +35,11 @@ Plus **`llm-chain-mock`**, a deterministic executor for unit-testing chains with
 
 ### First-party tool calling
 
-Every HTTP provider speaks its native tool-calling dialect — OpenAI function tools, Anthropic `tool_use` blocks, Gemini function declarations, Bedrock `toolConfig`, Ollama tools — and `llm-chain-tools` bridges any `ToolCollection` into all of them: `tool_schemas()` generates a JSON Schema per tool, `invoke_json()` runs the calls the model makes. See the new [Tool calling](/docs/tool-calling) docs page.
+Every HTTP provider speaks its native tool-calling dialect — OpenAI function tools, Anthropic `tool_use` blocks, Gemini function declarations, Bedrock `toolConfig`, Ollama tools, Lovable Gateway function tools — and `llm-chain-tools` bridges any `ToolCollection` into all of them: `tool_schemas()` generates a JSON Schema per tool, `invoke_json()` runs the calls the model makes. See the new [Tool calling](/docs/tool-calling) docs page.
 
 ### Streaming everywhere
 
-All five HTTP drivers implement a unified `StreamingExecutor` trait: `execute_stream()` yields typed events as the model generates — SSE for OpenAI, Anthropic and Gemini, NDJSON for Ollama, and AWS's CRC-validated binary event stream for Bedrock, all decoded natively. `text_delta()` prints tokens provider-agnostically, and each driver's `ResponseAccumulator` folds the events back into the full response — text, reasoning, tool calls and token usage included. See the new [Streaming](/docs/streaming) docs page.
+All six HTTP drivers implement a unified `StreamingExecutor` trait: `execute_stream()` yields typed events as the model generates — SSE for OpenAI, Anthropic, Gemini and the Lovable Gateway, NDJSON for Ollama, and AWS's CRC-validated binary event stream for Bedrock, all decoded natively. `text_delta()` prints tokens provider-agnostically, and each driver's `ResponseAccumulator` folds the events back into the full response — text, reasoning, tool calls and token usage included. See the new [Streaming](/docs/streaming) docs page.
 
 ### The wire, verified
 

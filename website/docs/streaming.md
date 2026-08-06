@@ -7,7 +7,7 @@ sidebar_position: 5
 
 # Streaming
 
-Every HTTP driver — OpenAI, Anthropic, Gemini, Bedrock and Ollama — can stream a response while the model generates it. Where `Executor::execute` buffers the whole response, `StreamingExecutor::execute_stream` resolves as soon as the model starts answering and yields typed events as they arrive.
+Every HTTP driver — OpenAI, Anthropic, Gemini, Bedrock, Ollama and the Lovable AI Gateway — can stream a response while the model generates it. Where `Executor::execute` buffers the whole response, `StreamingExecutor::execute_stream` resolves as soon as the model starts answering and yields typed events as they arrive.
 
 ```rust
 use futures::StreamExt as _;
@@ -72,12 +72,13 @@ let response = accumulator.into_response(); // Option<...>: None if the stream e
 | `llm-chain-gemini` | SSE (`streamGenerateContent?alt=sse`) | `GenerateContentResponse` |
 | `llm-chain-bedrock` | AWS binary event stream (`application/vnd.amazon.eventstream`, CRC-validated) over `converse-stream` | `StreamEvent` |
 | `llm-chain-ollama` | NDJSON | `ChatResponse` |
+| `llm-chain-lovable` | SSE (OpenAI-style `chat.completion.chunk`) | `ChatChunk` |
 
 Azure OpenAI and Vertex AI stream through the same executors as their base providers.
 
 ## Reasoning and tool calls stream too
 
-Providers that expose reasoning (`thinking_delta` on Anthropic, thought parts on Gemini, `reasoning_delta` on Bedrock, `thinking` on Ollama) stream it as separate deltas, and tool-call arguments arrive as incremental fragments. `text_delta` deliberately skips both — use the event types directly for richer UIs, and let the accumulator reassemble complete tool calls for the [native tool-calling loop](tool-calling.md).
+Providers that expose reasoning (`thinking_delta` on Anthropic, thought parts on Gemini, `reasoning_delta` on Bedrock, `thinking` on Ollama, `reasoning` deltas on the Lovable Gateway) stream it as separate deltas, and tool-call arguments arrive as incremental fragments. `text_delta` deliberately skips both — use the event types directly for richer UIs, and let the accumulator reassemble complete tool calls for the [native tool-calling loop](tool-calling.md).
 
 ## Writing your own streaming driver
 

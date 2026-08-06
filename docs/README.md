@@ -35,6 +35,7 @@ println!("{:?}", res);
 - **Anthropic support**: Claude via the Messages API — the Claude 5 generation (Fable, Opus, Sonnet) and Haiku 4.5 — with system prompts, sampling controls, reasoning effort and extended thinking, on a minimal built-in client (reqwest + rustls, no third-party SDK).
 - **Google Gemini support**: Gemini via the `generateContent` API — the Gemini 3 generation (3.6/3.5 Flash, 3.1 Pro, Flash-Lite) and the 2.5 family — with system instructions, sampling controls and thinking level/budget, on the same minimal built-in client.
 - **Ollama support**: Any model served by Ollama — locally (llama3.3, qwen3, gemma3, deepseek-r1, gpt-oss, …) with zero API keys, or via Ollama's cloud — with sampling controls, thinking, JSON mode/schemas and generation timings, on the same minimal built-in client.
+- **Lovable AI Gateway support**: One OpenAI-compatible surface over frontier models from multiple vendors (Gemini, GPT, …) behind a single `LOVABLE_API_KEY` — unified reasoning controls, JSON-schema outputs and per-request run ids, on the same minimal built-in client.
 - **Hyperscaler front doors**: The same chains run against the clouds' managed AI surfaces — **AWS Bedrock** (the model-agnostic Converse API: Claude, Nova, Llama, Mistral and more behind one wire format), **Google Vertex AI** (project-scoped or Express Mode, same executor as Gemini) and **Azure OpenAI** (the OpenAI-compatible v1 surface with API-key or Microsoft Entra ID auth, same executor as OpenAI).
 - **Local models via llama.cpp**: Run LLaMA, Mistral, Qwen, Gemma and any other GGUF model fully offline, with optional GPU acceleration (CUDA, Metal, Vulkan).
 - **Tools**: Enhance your AI agents' capabilities by giving them access to various tools, such as running Bash commands or executing Python scripts — via each provider's native tool-calling API or via prompting, enabling more complex and powerful interactions.
@@ -57,6 +58,7 @@ llm-chain-anthropic = "0.14.0"  # Anthropic (Claude)
 llm-chain-gemini = "0.14.0"     # Google (Gemini) + Vertex AI
 llm-chain-bedrock = "0.14.0"    # AWS Bedrock (Converse API)
 llm-chain-ollama = "0.14.0"     # Ollama (local or cloud open-weight models)
+llm-chain-lovable = "0.14.0"    # Lovable AI Gateway (multi-vendor)
 llm-chain-llama = "0.14.0"      # Local GGUF models via llama.cpp
 ```
 
@@ -141,7 +143,7 @@ let exec = llm_chain_gemini::generate_content::Executor::vertex("my-project", "e
 let exec = llm_chain_gemini::generate_content::Executor::vertex_express(api_key);
 ```
 
-Then, refer to the [documentation](https://docs.rs/llm-chain) and the examples ([OpenAI](/crates/llm-chain-openai/examples), [Anthropic](/crates/llm-chain-anthropic/examples), [Gemini](/crates/llm-chain-gemini/examples), [Bedrock](/crates/llm-chain-bedrock/examples), [Ollama](/crates/llm-chain-ollama/examples)) to learn how to create prompt templates, chains, and more.
+Then, refer to the [documentation](https://docs.rs/llm-chain) and the examples ([OpenAI](/crates/llm-chain-openai/examples), [Anthropic](/crates/llm-chain-anthropic/examples), [Gemini](/crates/llm-chain-gemini/examples), [Bedrock](/crates/llm-chain-bedrock/examples), [Ollama](/crates/llm-chain-ollama/examples), [Lovable](/crates/llm-chain-lovable/examples)) to learn how to create prompt templates, chains, and more.
 
 Upgrading from 0.1.x or 0.13.x? See the [migration guide](/docs/MIGRATION-0.14.md). Every release is documented in the [changelog](/CHANGELOG.md).
 
