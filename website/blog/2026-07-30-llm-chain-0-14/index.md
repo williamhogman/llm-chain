@@ -43,7 +43,7 @@ All six HTTP drivers implement a unified `StreamingExecutor` trait: `execute_str
 
 ### The wire, verified
 
-The HTTP drivers are built on a minimal `reqwest` + rustls client — no heavyweight SDKs — and each ships a mock-API test suite that asserts on the exact wire format, streaming included. The whole workspace (310+ tests) runs offline, including a real GGUF end-to-end inference test.
+The HTTP drivers are built on a minimal `reqwest` + rustls client — no heavyweight SDKs — and each ships a mock-API test suite that asserts on the exact wire format, streaming included. The whole workspace (370 tests) runs offline, including a real GGUF end-to-end inference test.
 
 ## Upgrading
 
