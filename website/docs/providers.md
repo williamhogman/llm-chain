@@ -89,6 +89,24 @@ let step = Step::new(
 
 Runs against a local Ollama server or Ollama cloud (`Executor::cloud(api_key)`), with JSON-schema constrained outputs via `Options::with_format`.
 
+## Lovable AI Gateway (`llm-chain-lovable`)
+
+```rust
+use llm_chain_lovable::chat::{Executor, Model, Options, ReasoningEffort, Role, Step};
+
+let exec = Executor::new_default()?; // reads LOVABLE_API_KEY
+let step = Step::new(
+    Model::default(), // google/gemini-3.6-flash
+    [
+        (Role::System, "You are a helpful assistant."),
+        (Role::User, "Tell me about {topic}."),
+    ],
+)
+.with_options(Options::new().with_reasoning_effort(ReasoningEffort::Medium));
+```
+
+One OpenAI-compatible surface over frontier models from multiple vendors — pass any catalog id (`google/gemini-3.6-flash`, `openai/gpt-5.5`, …) as the model. Reasoning is unified across vendors (`with_reasoning_effort` for OpenAI models, `with_reasoning(Reasoning::effort(...))` for the rest), responses carry the gateway's run id for observability, and rate limits (429) and exhausted credits (402) map to typed errors.
+
 ## llama.cpp in-process (`llm-chain-llama`)
 
 ```rust

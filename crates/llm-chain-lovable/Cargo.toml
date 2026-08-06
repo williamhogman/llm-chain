@@ -1,0 +1,34 @@
+[package]
+name = "llm-chain-lovable"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "A library implementing `llm-chains` for the Lovable AI Gateway — one key and one OpenAI-compatible surface for frontier chat models across vendors. Chains can be used to apply the model series to complete complex tasks, such as text summarization."
+license.workspace = true
+keywords = ["llm", "lovable", "gateway", "chain", "agents"]
+categories = ["science"]
+authors.workspace = true
+readme = "../docs/README.md"
+repository.workspace = true
+
+[features]
+default = ["serialization"]
+# Enables YAML (de)serialization of steps and prompt templates.
+# The wire types always derive serde; this only gates the llm-chain integration.
+serialization = ["llm-chain/serialization"]
+
+[dependencies]
+futures.workspace = true
+llm-chain.workspace = true
+reqwest.workspace = true
+secrecy.workspace = true
+serde = { workspace = true }
+serde_json.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+serde_yaml_ng.workspace = true
+tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread"] }
+
+[lints]
+workspace = true

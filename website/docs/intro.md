@@ -13,7 +13,7 @@ sidebar_position: 0
 
 - **Prompt templates**: Create reusable and easily customizable prompt templates for consistent and structured interactions with LLMs.
 - **Chains**: Build powerful chains of prompts that allow you to execute more complex tasks, step by step, leveraging the full potential of LLMs.
-- **Every major provider**: First-class drivers for OpenAI (and Azure OpenAI), Anthropic, Google Gemini (and Vertex AI), AWS Bedrock, and Ollama — all sharing the same `Step`/`Executor`/`Options` architecture.
+- **Every major provider**: First-class drivers for OpenAI (and Azure OpenAI), Anthropic, Google Gemini (and Vertex AI), AWS Bedrock, Ollama, and the Lovable AI Gateway — all sharing the same `Step`/`Executor`/`Options` architecture.
 - **Local inference**: Run GGUF models in-process via llama.cpp with the `llm-chain-llama` driver — no server, no API key.
 - **Native async, typed errors**: Built on Rust 2024 with native `async fn` in traits and typed errors end to end. No panics, no `async-trait`.
 - **Streaming**: Stream responses token by token from every HTTP provider through one `StreamingExecutor` trait — see [Streaming](streaming.md).
@@ -30,6 +30,7 @@ sidebar_position: 0
 | `llm-chain-gemini` | Google's Gemini API and Vertex AI |
 | `llm-chain-bedrock` | Amazon Bedrock's Converse API |
 | `llm-chain-ollama` | Ollama, local or cloud |
+| `llm-chain-lovable` | Lovable AI Gateway — one OpenAI-compatible surface over many vendors |
 | `llm-chain-llama` | llama.cpp in-process (GGUF models) |
 | `llm-chain-mock` | Mock executor for unit tests |
 | `llm-chain-tools` | Tool access for agents |

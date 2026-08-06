@@ -9,7 +9,7 @@ sidebar_position: 4
 
 `llm-chain-tools` gives models **tools** — actions they can trigger, like running a shell command or looking up data. There are two ways to wire them up:
 
-1. **Native tool calling** (recommended): declare the tools through the provider's first-party tool-calling API. The model returns structured tool calls, you execute them, and send the results back. Supported by OpenAI, Anthropic, Gemini, Bedrock and Ollama.
+1. **Native tool calling** (recommended): declare the tools through the provider's first-party tool-calling API. The model returns structured tool calls, you execute them, and send the results back. Supported by OpenAI, Anthropic, Gemini, Bedrock, Ollama and the Lovable AI Gateway.
 2. **Prompt-based tools**: describe the tools in the prompt as YAML and parse the model's YAML reply. Works with any model, including local llama.cpp models without tool training.
 
 ## Defining a tool
@@ -80,6 +80,7 @@ The crate ships `BashTool`, `PythonTool` and `ExitTool` ready-made.
 | `llm-chain-gemini` | `FunctionDeclaration::new(&s.name, &s.description, s.parameters)` |
 | `llm-chain-bedrock` | `ToolSpec::new(&s.name, &s.description, s.parameters)` |
 | `llm-chain-ollama` | `Tool::function(&s.name, &s.description, s.parameters)` |
+| `llm-chain-lovable` | `Tool::function(&s.name, &s.description, s.parameters)` |
 
 When the model calls a tool, `ToolCollection::invoke_json` executes it with the JSON arguments the model supplied and returns a JSON result to send back. The full agent loop with OpenAI:
 
